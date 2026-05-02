@@ -231,7 +231,113 @@
       overflow-y: auto;
       padding: 15px;
     }
+
+    /* 统计面板 */
+    .stats-toggle {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 18px;
+      transition: background 0.2s;
+    }
+    .stats-toggle:hover { background: rgba(255,255,255,0.3); }
+    .stats-toggle.active { background: rgba(255,255,255,0.4); }
+
+    .stats-panel {
+      position: absolute;
+      top: 70px;
+      right: 0;
+      width: 320px;
+      height: calc(100% - 70px);
+      background: white;
+      box-shadow: -4px 0 20px rgba(0,0,0,0.1);
+      z-index: 10;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      border-radius: 0 0 20px 0;
+    }
+    .stats-panel.open { transform: translateX(0); }
+    .stats-panel-header {
+      padding: 15px;
+      font-weight: 600;
+      font-size: 15px;
+      border-bottom: 1px solid #e9ecef;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .stats-panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 15px;
+    }
+    .stat-card {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .stat-card-title {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-around;
+      text-align: center;
+    }
+    .stat-item {
+      flex: 1;
+    }
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #667eea;
+    }
+    .stat-label {
+      font-size: 11px;
+      color: #999;
+      margin-top: 2px;
+    }
+    .progress-bar-bg {
+      height: 8px;
+      background: #e9ecef;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+    .chart-container {
+      height: 180px;
+      margin-top: 8px;
+      position: relative;
+    }
+    .streak-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+    }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <div class="container">
@@ -245,6 +351,7 @@
         <span class="status-dot" id="statusDot"></span>
         <span id="statusText">连接中...</span>
         <button type="button" class="plan-toggle" id="planToggle" title="今日计划">📋</button>
+        <button type="button" class="stats-toggle" id="statsToggle" title="学习统计">📊</button>
       </div>
     </div>
 
@@ -257,6 +364,10 @@
       <div class="plan-panel" id="planPanel">
         <div class="plan-panel-header">📋 今日计划</div>
         <div class="plan-panel-body" id="planContent"></div>
+      </div>
+      <div class="stats-panel" id="statsPanel">
+        <div class="stats-panel-header">📊 学习统计</div>
+        <div class="stats-panel-body" id="statsContent"></div>
       </div>
     </div>
 
@@ -336,8 +447,9 @@
       const weekStart = new Date(now);
       weekStart.setDate(now.getDate() - dayOfWeek + 1);
       const weekStartStr = weekStart.toISOString().split('T')[0];
+      const monthStartStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
-      let todayMin = 0, weekMin = 0, totalDays = 0;
+      let todayMin = 0, weekMin = 0, monthMin = 0, totalDays = 0;
       const subjects = {};
       const dates = new Set();
 
@@ -345,6 +457,7 @@
         dates.add(r.date);
         if (r.date === today) todayMin += r.duration;
         if (r.date >= weekStartStr) weekMin += r.duration;
+        if (r.date >= monthStartStr) monthMin += r.duration;
         subjects[r.subject] = (subjects[r.subject] || 0) + r.duration;
       }
       totalDays = dates.size;
@@ -360,7 +473,7 @@
         else break;
       }
 
-      return { todayMin, weekMin, totalDays, streak, subjects };
+      return { todayMin, weekMin, monthMin, totalDays, streak, subjects };
     }
 
     // ==================== 计划管理 ====================
@@ -433,6 +546,189 @@
 
       updatePlanItem(date, time, newStatus);
       renderPlanPanel();
+    }
+
+    // ==================== 学习统计面板 ====================
+    let statsPieChart = null;
+    let statsLineChart = null;
+
+    function formatDuration(min) {
+      if (min < 60) return `${min}分钟`;
+      const h = Math.floor(min / 60);
+      const m = min % 60;
+      return m > 0 ? `${h}小时${m}分钟` : `${h}小时`;
+    }
+
+    function getPlanCompletionRate() {
+      const plans = getPlans();
+      let totalItems = 0, doneItems = 0;
+      plans.forEach(p => {
+        if (p.items) {
+          totalItems += p.items.length;
+          doneItems += p.items.filter(i => i.status === 'done').length;
+        }
+      });
+      const todayPlan = getTodayPlan();
+      const todayTotal = todayPlan?.items?.length || 0;
+      const todayDone = todayPlan?.items?.filter(i => i.status === 'done').length || 0;
+      return {
+        todayDone, todayTotal,
+        totalDone: doneItems, totalItems,
+        rate: totalItems > 0 ? Math.round(doneItems / totalItems * 100) : 0
+      };
+    }
+
+    function renderStatsPanel() {
+      const content = document.getElementById('statsContent');
+      const profile = getProfile();
+      const stats = getStudyStats();
+      const planRate = getPlanCompletionRate();
+      const hasData = stats.totalDays > 0;
+
+      // 备考进度区
+      let html = '<div class="stat-card">';
+      html += '<div class="stat-card-title">📅 备考进度</div>';
+      if (profile?.examDate) {
+        const days = Math.ceil((new Date(profile.examDate) - Date.now()) / 86400000);
+        const totalDays = Math.ceil((new Date(profile.examDate) - new Date(profile.createdAt || Date.now())) / 86400000);
+        const elapsed = totalDays - days;
+        const progress = totalDays > 0 ? Math.min(100, Math.max(0, Math.round(elapsed / totalDays * 100))) : 0;
+        html += `<div style="font-size:14px;margin-bottom:6px;">距离考研 <strong style="color:#667eea;font-size:18px;">${days}</strong> 天</div>`;
+        html += `<div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${progress}%"></div></div>`;
+        html += `<div style="font-size:11px;color:#999;margin-top:4px;">备考进度 ${progress}%</div>`;
+      } else {
+        html += '<div style="font-size:13px;color:#999;">未设置考试日期<br><small>告诉我"12月21号考试"即可设置</small></div>';
+      }
+      if (stats.streak >= 1) {
+        html += `<div style="margin-top:8px;"><span class="streak-badge">🔥 连续学习 ${stats.streak} 天</span></div>`;
+      }
+      html += '</div>';
+
+      // 学习时长区
+      html += '<div class="stat-card">';
+      html += '<div class="stat-card-title">⏱️ 学习时长</div>';
+      html += '<div class="stat-row">';
+      html += `<div class="stat-item"><div class="stat-value">${Math.round(stats.todayMin/60*10)/10}</div><div class="stat-label">今日(小时)</div></div>`;
+      html += `<div class="stat-item"><div class="stat-value">${Math.round(stats.weekMin/60*10)/10}</div><div class="stat-label">本周(小时)</div></div>`;
+      html += `<div class="stat-item"><div class="stat-value">${Math.round((stats.monthMin||0)/60*10)/10}</div><div class="stat-label">本月(小时)</div></div>`;
+      html += '</div>';
+      html += `<div style="text-align:center;margin-top:8px;font-size:12px;color:#999;">累计学习 ${stats.totalDays} 天</div>`;
+      html += '</div>';
+
+      // 近7天趋势图
+      html += '<div class="stat-card">';
+      html += '<div class="stat-card-title">📈 近7天趋势</div>';
+      if (hasData) {
+        html += '<div class="chart-container"><canvas id="trendChart"></canvas></div>';
+      } else {
+        html += '<div style="text-align:center;color:#999;padding:20px;font-size:13px;">暂无学习数据</div>';
+      }
+      html += '</div>';
+
+      // 四科分布饼图
+      html += '<div class="stat-card">';
+      html += '<div class="stat-card-title">📚 四科分布</div>';
+      if (hasData && Object.keys(stats.subjects).length > 0) {
+        html += '<div class="chart-container"><canvas id="subjectChart"></canvas></div>';
+      } else {
+        html += '<div style="text-align:center;color:#999;padding:20px;font-size:13px;">暂无科目数据</div>';
+      }
+      html += '</div>';
+
+      // 计划完成率
+      html += '<div class="stat-card">';
+      html += '<div class="stat-card-title">✅ 计划完成率</div>';
+      html += '<div class="stat-row">';
+      html += `<div class="stat-item"><div class="stat-value">${planRate.todayDone}/${planRate.todayTotal}</div><div class="stat-label">今日完成</div></div>`;
+      html += `<div class="stat-item"><div class="stat-value">${planRate.rate}%</div><div class="stat-label">累计完成率</div></div>`;
+      html += '</div>';
+      html += '</div>';
+
+      content.innerHTML = html;
+
+      // 渲染图表
+      if (typeof Chart !== 'undefined') {
+        if (hasData) renderTrendLineChart();
+        if (hasData && Object.keys(stats.subjects).length > 0) renderSubjectPieChart();
+      }
+    }
+
+    function renderTrendLineChart() {
+      const records = getStudyRecords();
+      const labels = [];
+      const data = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        const dayLabel = `${d.getMonth()+1}/${d.getDate()}`;
+        labels.push(dayLabel);
+        const dayMin = records.filter(r => r.date === dateStr).reduce((s, r) => s + r.duration, 0);
+        data.push(Math.round(dayMin / 60 * 10) / 10);
+      }
+
+      const ctx = document.getElementById('trendChart');
+      if (!ctx) return;
+      if (statsLineChart) statsLineChart.destroy();
+      statsLineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: '学习时长(小时)',
+            data,
+            borderColor: '#667eea',
+            backgroundColor: 'rgba(102,126,234,0.1)',
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#667eea',
+            pointRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, ticks: { font: { size: 11 } } },
+            x: { ticks: { font: { size: 11 } } }
+          }
+        }
+      });
+    }
+
+    function renderSubjectPieChart() {
+      const stats = getStudyStats();
+      const subjects = stats.subjects;
+      const labels = Object.keys(subjects);
+      const data = labels.map(k => Math.round(subjects[k] / 60 * 10) / 10);
+      const colors = ['#667eea', '#764ba2', '#f093fb', '#51cf66', '#ffa94d', '#ff6b6b'];
+
+      const ctx = document.getElementById('subjectChart');
+      if (!ctx) return;
+      if (statsPieChart) statsPieChart.destroy();
+      statsPieChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data,
+            backgroundColor: colors.slice(0, labels.length),
+            borderWidth: 2,
+            borderColor: '#fff',
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { font: { size: 12 }, padding: 12 }
+            }
+          }
+        }
+      });
     }
 
     // ==================== 生成记忆上下文（发送给LLM） ====================
@@ -575,6 +871,11 @@
           if (message.planData && message.planData.items) {
             savePlan(message.planData);
             renderPlanPanel();
+          }
+
+          // 统计面板打开时自动刷新
+          if (document.getElementById('statsPanel').classList.contains('open')) {
+            renderStatsPanel();
           }
         }
       };
@@ -720,12 +1021,33 @@
     renderPlanPanel();
     checkReminders();
 
-    // 计划面板切换
+    // 面板切换（互斥）
     document.getElementById('planToggle').addEventListener('click', () => {
       const panel = document.getElementById('planPanel');
       const btn = document.getElementById('planToggle');
+      const statsPanel = document.getElementById('statsPanel');
+      const statsBtn = document.getElementById('statsToggle');
+      // 关闭统计面板
+      statsPanel.classList.remove('open');
+      statsBtn.classList.remove('active');
+      // 切换计划面板
       panel.classList.toggle('open');
       btn.classList.toggle('active');
+      if (panel.classList.contains('open')) renderPlanPanel();
+    });
+
+    document.getElementById('statsToggle').addEventListener('click', () => {
+      const panel = document.getElementById('statsPanel');
+      const btn = document.getElementById('statsToggle');
+      const planPanel = document.getElementById('planPanel');
+      const planBtn = document.getElementById('planToggle');
+      // 关闭计划面板
+      planPanel.classList.remove('open');
+      planBtn.classList.remove('active');
+      // 切换统计面板
+      panel.classList.toggle('open');
+      btn.classList.toggle('active');
+      if (panel.classList.contains('open')) renderStatsPanel();
     });
   </script>
 </body>
