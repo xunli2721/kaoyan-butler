@@ -4,12 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>考研小管家 - AI考研备考助手</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -18,323 +15,371 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 20px;
+      padding: 16px;
     }
 
     .container {
       width: 100%;
-      max-width: 800px;
-      height: 90vh;
-      max-height: 700px;
+      max-width: 1200px;
+      height: 94vh;
       background: white;
-      border-radius: 20px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
 
+    /* Header */
     .header {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      padding: 20px;
+      padding: 14px 20px;
       display: flex;
       align-items: center;
-      gap: 15px;
+      gap: 12px;
+      flex-shrink: 0;
     }
-
     .header-avatar {
-      width: 50px;
-      height: 50px;
+      width: 42px; height: 42px;
       background: white;
       border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
     }
-
-    .header-info h1 {
-      font-size: 18px;
-      font-weight: 600;
-    }
-
-    .header-info p {
-      font-size: 12px;
-      opacity: 0.8;
-    }
-
-    .status {
+    .header-info h1 { font-size: 17px; font-weight: 600; }
+    .header-info p { font-size: 11px; opacity: 0.8; }
+    .header-right {
       margin-left: auto;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 12px;
+      display: flex; align-items: center; gap: 8px;
     }
-
-    .status-dot {
-      width: 10px;
-      height: 10px;
+    .status { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ff6b6b; }
+    .status-dot.connected { background: #51cf66; }
+    .mobile-btn {
+      display: none;
+      background: rgba(255,255,255,0.2);
+      border: none; color: white;
+      width: 34px; height: 34px;
       border-radius: 50%;
-      background: #ff6b6b;
+      cursor: pointer; font-size: 16px;
     }
 
-    .status-dot.connected {
-      background: #51cf66;
+    /* Main Layout */
+    .main-layout {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
     }
 
+    /* Chat Area */
+    .chat-area {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      background: #f8f9fa;
+    }
     .messages {
       flex: 1;
       overflow-y: auto;
-      padding: 20px;
+      padding: 16px;
       display: flex;
       flex-direction: column;
-      gap: 15px;
-      background: #f8f9fa;
+      gap: 12px;
     }
 
+    /* Messages */
+    .message-wrapper {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      max-width: 85%;
+      animation: fadeInUp 0.3s ease;
+    }
+    .message-wrapper.user { align-self: flex-end; flex-direction: row-reverse; }
+    .message-wrapper.assistant { align-self: flex-start; }
+    .msg-avatar {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0; background: #eee;
+    }
+    .msg-content { display: flex; flex-direction: column; gap: 3px; }
     .message {
-      max-width: 80%;
-      padding: 12px 16px;
-      border-radius: 18px;
-      font-size: 15px;
+      padding: 10px 14px;
+      border-radius: 16px;
+      font-size: 14px;
       line-height: 1.5;
       white-space: pre-wrap;
     }
-
     .message.user {
-      align-self: flex-end;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
     }
-
     .message.assistant {
-      align-self: flex-start;
       background: white;
       color: #333;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+    }
+    .msg-time { font-size: 10px; color: #aaa; padding: 0 4px; }
+    .message-wrapper.user .msg-time { text-align: right; }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
-    .input-area {
-      padding: 15px 20px;
-      background: white;
-      border-top: 1px solid #e9ecef;
-      display: flex;
-      gap: 10px;
+    /* Long message collapse */
+    .msg-text.collapsed { max-height: 180px; overflow: hidden; position: relative; }
+    .msg-text.collapsed::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+      height: 36px; background: linear-gradient(transparent, white);
+    }
+    .msg-expand-btn {
+      background: none; border: none; color: #667eea;
+      font-size: 12px; cursor: pointer; padding: 2px 0;
     }
 
-    #messageInput {
-      flex: 1;
-      border: none;
-      background: #f1f3f4;
-      padding: 12px 16px;
-      border-radius: 25px;
-      font-size: 15px;
-      outline: none;
+    /* Date separator */
+    .date-separator {
+      display: flex; align-items: center; gap: 12px; margin: 6px 0;
     }
-
-    #messageInput:focus {
-      background: #e8eaed;
+    .date-separator::before, .date-separator::after {
+      content: ''; flex: 1; height: 1px; background: #ddd;
     }
+    .date-separator span { font-size: 11px; color: #999; white-space: nowrap; }
 
-    .send-btn {
-      width: 45px;
-      height: 45px;
-      border: none;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border-radius: 50%;
-      cursor: pointer;
-      font-size: 18px;
-      transition: transform 0.2s;
-    }
-
-    .send-btn:hover {
-      transform: scale(1.05);
-    }
-
-    .send-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-
+    /* Typing indicator */
     .typing-indicator {
-      display: none;
-      align-self: flex-start;
-      padding: 12px 16px;
-      background: white;
-      border-radius: 18px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      display: none; align-self: flex-start;
+      padding: 10px 14px; background: white;
+      border-radius: 16px; box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+      align-items: center; gap: 8px;
     }
-
-    .typing-indicator span {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      background: #999;
-      border-radius: 50%;
-      margin: 0 2px;
+    .typing-indicator span:not(.thinking-text):not(.thinking-dots) {
+      display: inline-block; width: 6px; height: 6px;
+      background: #999; border-radius: 50%; margin: 0 1px;
       animation: typing 1.4s infinite;
     }
-
-    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-
+    .typing-indicator span:nth-child(3) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(4) { animation-delay: 0.4s; }
     @keyframes typing {
       0%, 60%, 100% { transform: translateY(0); }
-      30% { transform: translateY(-5px); }
+      30% { transform: translateY(-4px); }
+    }
+    .thinking-text { color: #999; font-size: 12px; }
+    .thinking-dots::after { content: ''; animation: dots 1.5s steps(4,end) infinite; }
+    @keyframes dots {
+      0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; }
     }
 
-    /* 计划面板 */
-    .plan-toggle {
-      background: rgba(255,255,255,0.2);
-      border: none;
-      color: white;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      cursor: pointer;
-      font-size: 18px;
+    /* Quick actions */
+    .quick-actions {
+      display: flex; gap: 6px; padding: 6px 16px;
+      overflow-x: auto; background: white; border-top: 1px solid #f0f0f0;
+    }
+    .quick-actions::-webkit-scrollbar { display: none; }
+    .quick-chip {
+      flex-shrink: 0; padding: 5px 12px; border-radius: 16px;
+      border: 1px solid #e0e0e0; background: #fafafa;
+      font-size: 12px; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .quick-chip:hover { background: #667eea; color: white; border-color: #667eea; }
+
+    /* Input area */
+    .input-area {
+      padding: 10px 16px; background: white;
+      border-top: 1px solid #e9ecef; display: flex; gap: 8px;
+    }
+    #messageInput {
+      flex: 1; border: none; background: #f1f3f4;
+      padding: 10px 14px; border-radius: 20px; font-size: 14px; outline: none;
+      transition: box-shadow 0.2s;
+    }
+    #messageInput:focus { background: #f8f9fa; box-shadow: 0 0 0 2px rgba(102,126,234,0.3); }
+    .send-btn {
+      width: 40px; height: 40px; border: none;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white; border-radius: 50%; cursor: pointer;
+      font-size: 16px; transition: transform 0.2s;
+    }
+    .send-btn:hover { transform: scale(1.05); }
+    .send-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* Welcome card */
+    .welcome-card {
+      background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+      border-radius: 14px; padding: 14px; margin: 4px 0;
+    }
+    .welcome-card h3 { font-size: 14px; color: #667eea; margin-bottom: 8px; }
+    .welcome-features { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .welcome-feature {
+      background: white; border-radius: 8px; padding: 8px;
+      font-size: 12px; display: flex; align-items: center; gap: 6px;
+      cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .welcome-feature:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.08); }
+    .welcome-feature .wf-icon { font-size: 18px; }
+    .welcome-feature .wf-text { font-size: 11px; color: #666; }
+
+    /* ========== Sidebar ========== */
+    .sidebar {
+      width: 340px; flex-shrink: 0;
+      border-left: 1px solid #e9ecef;
+      display: flex; flex-direction: column;
+      background: white;
+    }
+    .sidebar-tabs {
+      display: flex; border-bottom: 1px solid #e9ecef; flex-shrink: 0;
+    }
+    .sidebar-tab {
+      flex: 1; padding: 10px; border: none; background: none;
+      font-size: 13px; font-weight: 500; color: #999;
+      cursor: pointer; transition: all 0.2s;
+      border-bottom: 2px solid transparent;
+    }
+    .sidebar-tab.active { color: #667eea; border-bottom-color: #667eea; }
+    .sidebar-tab:hover { color: #667eea; }
+    .sidebar-content {
+      flex: 1; overflow-y: auto; padding: 12px;
+    }
+    .sidebar-content::-webkit-scrollbar { width: 5px; }
+    .sidebar-content::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
+
+    /* Plan items */
+    .plan-header { font-size: 13px; color: #666; margin-bottom: 10px; }
+    .plan-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 10px;
+      background: #f8f9fa; margin-bottom: 5px;
+    }
+    .plan-item.done { opacity: 0.55; }
+    .plan-item.done .plan-item-name { text-decoration: line-through; }
+    .plan-item-status { font-size: 15px; cursor: pointer; flex-shrink: 0; }
+    .plan-item-body { flex: 1; min-width: 0; cursor: pointer; }
+    .plan-item-name { font-size: 13px; font-weight: 500; }
+    .plan-item-time { font-size: 11px; color: #999; }
+    .plan-action-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 13px; padding: 2px 4px; border-radius: 4px;
+      transition: background 0.15s; opacity: 0.4;
+    }
+    .plan-action-btn:hover { opacity: 1; background: rgba(0,0,0,0.05); }
+
+    /* Plan edit form */
+    .plan-edit-form {
+      display: flex; flex-direction: column; gap: 5px;
+      padding: 8px 10px; background: #f0f0ff;
+      border-radius: 10px; margin-bottom: 5px;
+    }
+    .plan-edit-form input {
+      border: 1px solid #ddd; border-radius: 6px;
+      padding: 5px 8px; font-size: 12px; outline: none;
+    }
+    .plan-edit-form input:focus { border-color: #667eea; }
+    .plan-edit-btns { display: flex; gap: 5px; justify-content: flex-end; }
+    .plan-edit-btns button {
+      border: none; border-radius: 6px; padding: 4px 10px;
+      font-size: 11px; cursor: pointer;
+    }
+    .plan-save-btn { background: #667eea; color: white; }
+    .plan-cancel-btn { background: #e9ecef; color: #666; }
+    .plan-delete-btn { background: #fff0f0; color: #e74c3c; }
+    .plan-add-btn {
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+      padding: 7px; border: 2px dashed #ddd; border-radius: 10px;
+      background: transparent; color: #999; font-size: 12px;
+      cursor: pointer; width: 100%; margin-top: 6px; transition: all 0.2s;
+    }
+    .plan-add-btn:hover { border-color: #667eea; color: #667eea; }
+
+    /* History section */
+    .history-section {
+      margin-top: 16px; padding-top: 12px; border-top: 1px solid #e9ecef;
+    }
+    .history-header {
+      font-size: 13px; font-weight: 600; color: #555; margin-bottom: 8px;
+    }
+    .history-nav {
+      display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 10px;
+    }
+    .history-nav button {
+      background: #f0f0f0; border: none; width: 28px; height: 28px;
+      border-radius: 50%; cursor: pointer; font-size: 13px;
+      display: flex; align-items: center; justify-content: center;
       transition: background 0.2s;
     }
-    .plan-toggle:hover { background: rgba(255,255,255,0.3); }
-    .plan-toggle.active { background: rgba(255,255,255,0.4); }
+    .history-nav button:hover { background: #e0e0e0; }
+    .history-nav button:disabled { opacity: 0.3; cursor: not-allowed; }
+    .history-date { font-size: 13px; font-weight: 500; color: #667eea; min-width: 90px; text-align: center; }
+    .history-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 8px; border-radius: 8px;
+      background: #fafafa; margin-bottom: 4px; font-size: 12px;
+    }
+    .history-item-status { font-size: 13px; }
+    .history-item-name { font-weight: 500; }
+    .history-item-time { color: #999; font-size: 11px; }
+    .history-empty { text-align: center; color: #ccc; font-size: 12px; padding: 12px; }
 
-    .plan-panel {
-      position: absolute;
-      top: 70px;
-      right: 0;
-      width: 280px;
-      height: calc(100% - 70px);
-      background: white;
-      box-shadow: -4px 0 20px rgba(0,0,0,0.1);
-      z-index: 10;
-      transform: translateX(100%);
-      transition: transform 0.3s ease;
-      display: flex;
-      flex-direction: column;
-      border-radius: 0 0 20px 0;
-    }
-    .plan-panel.open { transform: translateX(0); }
-    .plan-panel-header {
-      padding: 15px;
-      font-weight: 600;
-      font-size: 15px;
-      border-bottom: 1px solid #e9ecef;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .plan-panel-body {
-      flex: 1;
-      overflow-y: auto;
-      padding: 15px;
-    }
-
-    /* 统计面板 */
-    .stats-toggle {
-      background: rgba(255,255,255,0.2);
-      border: none;
-      color: white;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      cursor: pointer;
-      font-size: 18px;
-      transition: background 0.2s;
-    }
-    .stats-toggle:hover { background: rgba(255,255,255,0.3); }
-    .stats-toggle.active { background: rgba(255,255,255,0.4); }
-
-    .stats-panel {
-      position: absolute;
-      top: 70px;
-      right: 0;
-      width: 320px;
-      height: calc(100% - 70px);
-      background: white;
-      box-shadow: -4px 0 20px rgba(0,0,0,0.1);
-      z-index: 10;
-      transform: translateX(100%);
-      transition: transform 0.3s ease;
-      display: flex;
-      flex-direction: column;
-      border-radius: 0 0 20px 0;
-    }
-    .stats-panel.open { transform: translateX(0); }
-    .stats-panel-header {
-      padding: 15px;
-      font-weight: 600;
-      font-size: 15px;
-      border-bottom: 1px solid #e9ecef;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .stats-panel-body {
-      flex: 1;
-      overflow-y: auto;
-      padding: 15px;
-    }
+    /* Stats */
     .stat-card {
-      background: #f8f9fa;
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 12px;
+      background: #f8f9fa; border-radius: 10px; padding: 10px; margin-bottom: 10px;
     }
     .stat-card-title {
-      font-size: 13px;
-      color: #666;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
+      font-size: 12px; color: #666; margin-bottom: 6px;
+      display: flex; align-items: center; gap: 5px;
     }
-    .stat-row {
-      display: flex;
-      justify-content: space-around;
-      text-align: center;
-    }
-    .stat-item {
-      flex: 1;
-    }
-    .stat-value {
-      font-size: 20px;
-      font-weight: 700;
-      color: #667eea;
-    }
-    .stat-label {
-      font-size: 11px;
-      color: #999;
-      margin-top: 2px;
-    }
+    .stat-row { display: flex; justify-content: space-around; text-align: center; }
+    .stat-item { flex: 1; }
+    .stat-value { font-size: 18px; font-weight: 700; color: #667eea; }
+    .stat-label { font-size: 10px; color: #999; margin-top: 1px; }
     .progress-bar-bg {
-      height: 8px;
-      background: #e9ecef;
-      border-radius: 4px;
-      overflow: hidden;
-      margin-top: 8px;
+      height: 6px; background: #e9ecef; border-radius: 3px;
+      overflow: hidden; margin-top: 6px;
     }
     .progress-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #667eea, #764ba2);
-      border-radius: 4px;
-      transition: width 0.5s ease;
+      height: 100%; background: linear-gradient(90deg, #667eea, #764ba2);
+      border-radius: 3px; transition: width 0.5s ease;
     }
-    .chart-container {
-      height: 180px;
-      margin-top: 8px;
-      position: relative;
-    }
+    .chart-container { height: 160px; margin-top: 6px; position: relative; }
     .streak-badge {
       display: inline-block;
       background: linear-gradient(135deg, #667eea, #764ba2);
-      color: white;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 500;
+      color: white; padding: 3px 10px; border-radius: 16px;
+      font-size: 12px; font-weight: 500;
+    }
+
+    /* Sidebar overlay for mobile */
+    .sidebar-overlay {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: white; z-index: 100; flex-direction: column;
+    }
+    .sidebar-overlay.open { display: flex; }
+    .sidebar-overlay-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white; padding: 14px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .sidebar-overlay-close {
+      background: rgba(255,255,255,0.2); border: none; color: white;
+      width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 14px;
+    }
+
+    /* Custom scrollbar */
+    .messages::-webkit-scrollbar { width: 5px; }
+    .messages::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 3px; }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      body { padding: 0; }
+      .container { border-radius: 0; height: 100vh; max-height: none; }
+      .sidebar { display: none; }
+      .mobile-btn { display: flex; align-items: center; justify-content: center; }
+      .messages { padding: 12px; }
+      .quick-actions { padding: 6px 12px; }
+      .input-area { padding: 8px 12px; }
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
@@ -347,63 +392,92 @@
         <h1>考研小管家</h1>
         <p>你的AI考研备考助手</p>
       </div>
-      <div class="status">
+      <div class="header-right">
         <span class="status-dot" id="statusDot"></span>
-        <span id="statusText">连接中...</span>
-        <button type="button" class="plan-toggle" id="planToggle" title="今日计划">📋</button>
-        <button type="button" class="stats-toggle" id="statsToggle" title="学习统计">📊</button>
+        <span id="statusText" style="font-size:12px;">连接中...</span>
+        <button class="mobile-btn" id="mobileSidebarBtn" title="计划与统计">📋</button>
       </div>
     </div>
 
-    <div style="position:relative;flex:1;display:flex;flex-direction:column;overflow:hidden;">
-      <div class="messages" id="messages">
-        <div class="typing-indicator" id="typingIndicator">
-          <span></span><span></span><span></span>
+    <div class="main-layout">
+      <!-- Left: Chat -->
+      <div class="chat-area">
+        <div class="messages" id="messages">
+          <div class="typing-indicator" id="typingIndicator">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+        <div class="quick-actions">
+          <span class="quick-chip" onclick="quickSend('帮我安排今天的复习')">📋 今日计划</span>
+          <span class="quick-chip" onclick="quickSend('今天学了2小时高数')">📝 记录学习</span>
+          <span class="quick-chip" onclick="quickSend('什么是泰勒展开？')">❓ 知识问答</span>
+          <span class="quick-chip" onclick="quickSend('我高数哪些章节薄弱？')">🔍 薄弱分析</span>
+        </div>
+        <div class="input-area">
+          <input type="text" id="messageInput" placeholder="输入消息，或点击上方快捷操作..." autocomplete="off">
+          <button class="send-btn" id="sendBtn" disabled>➤</button>
         </div>
       </div>
-      <div class="plan-panel" id="planPanel">
-        <div class="plan-panel-header">📋 今日计划</div>
-        <div class="plan-panel-body" id="planContent"></div>
-      </div>
-      <div class="stats-panel" id="statsPanel">
-        <div class="stats-panel-header">📊 学习统计</div>
-        <div class="stats-panel-body" id="statsContent"></div>
+
+      <!-- Right: Sidebar -->
+      <div class="sidebar" id="sidebar">
+        <div class="sidebar-tabs">
+          <button class="sidebar-tab active" data-tab="plan" onclick="switchSidebarTab('plan')">📋 今日计划</button>
+          <button class="sidebar-tab" data-tab="stats" onclick="switchSidebarTab('stats')">📊 学习统计</button>
+        </div>
+        <div class="sidebar-content" id="sidebarPlan">
+          <div id="planContent"></div>
+          <div class="history-section">
+            <div class="history-header">📅 历史计划</div>
+            <div class="history-nav">
+              <button onclick="historyPrev()" id="historyPrevBtn">←</button>
+              <span class="history-date" id="historyDate">--</span>
+              <button onclick="historyNext()" id="historyNextBtn">→</button>
+            </div>
+            <div id="historyContent"></div>
+          </div>
+        </div>
+        <div class="sidebar-content" id="sidebarStats" style="display:none;">
+          <div id="statsContent"></div>
+        </div>
       </div>
     </div>
+  </div>
 
-    <div class="input-area">
-      <input type="text" id="messageInput" placeholder="输入消息..." autocomplete="off">
-      <button class="send-btn" id="sendBtn" disabled>➤</button>
+  <!-- Mobile sidebar overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay">
+    <div class="sidebar-overlay-header">
+      <span>📋 计划与统计</span>
+      <button class="sidebar-overlay-close" onclick="closeSidebarOverlay()">✕</button>
+    </div>
+    <div class="sidebar-tabs">
+      <button class="sidebar-tab active" data-tab="plan" onclick="switchOverlayTab('plan')">📋 今日计划</button>
+      <button class="sidebar-tab" data-tab="stats" onclick="switchOverlayTab('stats')">📊 学习统计</button>
+    </div>
+    <div class="sidebar-content" id="overlayPlan" style="flex:1;overflow-y:auto;padding:12px;">
+      <div id="overlayPlanContent"></div>
+    </div>
+    <div class="sidebar-content" id="overlayStats" style="display:none;flex:1;overflow-y:auto;padding:12px;">
+      <div id="overlayStatsContent"></div>
     </div>
   </div>
 
   <script>
     // ==================== 设备身份管理 ====================
     const DEVICE_ID_KEY = 'kaoyan-butler-device-id';
-
     function getOrCreateDeviceId() {
-      let deviceId = localStorage.getItem(DEVICE_ID_KEY);
-      if (!deviceId) {
-        deviceId = 'device-' + Date.now().toString(36) + '-' +
-                   Math.random().toString(36).substr(2, 9);
-        localStorage.setItem(DEVICE_ID_KEY, deviceId);
-      }
-      return deviceId;
+      let id = localStorage.getItem(DEVICE_ID_KEY);
+      if (!id) { id = 'device-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2,9); localStorage.setItem(DEVICE_ID_KEY, id); }
+      return id;
     }
 
     // ==================== 对话历史管理 ====================
     const CHAT_HISTORY_KEY = 'kaoyan-butler-chat-history';
-
     function loadChatHistory() {
-      try {
-        const history = localStorage.getItem(CHAT_HISTORY_KEY);
-        return history ? JSON.parse(history) : [];
-      } catch { return []; }
+      try { return JSON.parse(localStorage.getItem(CHAT_HISTORY_KEY) || '[]'); } catch { return []; }
     }
-
     function saveChatHistory(msgs) {
-      try { localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(msgs)); }
-      catch (e) { console.error('保存对话历史失败:', e); }
+      try { localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(msgs)); } catch(e) { console.error('保存对话历史失败:', e); }
     }
 
     // ==================== 考研档案管理 ====================
@@ -412,423 +486,373 @@
     const PLANS_KEY = 'kaoyan-plans';
 
     function getProfile() {
-      try {
-        const d = localStorage.getItem(PROFILE_KEY);
-        return d ? JSON.parse(d) : null;
-      } catch { return null; }
+      try { const d = localStorage.getItem(PROFILE_KEY); return d ? JSON.parse(d) : null; } catch { return null; }
     }
-
-    function saveProfile(profile) {
+    function saveProfile(p) {
       const existing = getProfile();
-      const merged = { subjects: [], createdAt: Date.now(), ...existing, ...profile, updatedAt: Date.now() };
+      const merged = { subjects: [], createdAt: Date.now(), ...existing, ...p, updatedAt: Date.now() };
       localStorage.setItem(PROFILE_KEY, JSON.stringify(merged));
       return merged;
     }
-
     function getStudyRecords() {
-      try {
-        const d = localStorage.getItem(STUDY_RECORDS_KEY);
-        return d ? JSON.parse(d) : [];
-      } catch { return []; }
+      try { return JSON.parse(localStorage.getItem(STUDY_RECORDS_KEY) || '[]'); } catch { return []; }
     }
-
-    function addStudyRecord(record) {
+    function addStudyRecord(r) {
       const records = getStudyRecords();
-      records.push({ ...record, createdAt: Date.now() });
+      records.push({ ...r, createdAt: Date.now() });
       localStorage.setItem(STUDY_RECORDS_KEY, JSON.stringify(records));
       return records;
     }
-
     function getStudyStats() {
       const records = getStudyRecords();
       const today = new Date().toISOString().split('T')[0];
       const now = new Date();
       const dayOfWeek = now.getDay() || 7;
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - dayOfWeek + 1);
+      const weekStart = new Date(now); weekStart.setDate(now.getDate() - dayOfWeek + 1);
       const weekStartStr = weekStart.toISOString().split('T')[0];
-      const monthStartStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-
-      let todayMin = 0, weekMin = 0, monthMin = 0, totalDays = 0;
-      const subjects = {};
-      const dates = new Set();
-
+      const monthStartStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+      let todayMin=0, weekMin=0, monthMin=0, totalDays=0;
+      const subjects = {}, dates = new Set();
       for (const r of records) {
         dates.add(r.date);
         if (r.date === today) todayMin += r.duration;
         if (r.date >= weekStartStr) weekMin += r.duration;
         if (r.date >= monthStartStr) monthMin += r.duration;
-        subjects[r.subject] = (subjects[r.subject] || 0) + r.duration;
+        subjects[r.subject] = (subjects[r.subject]||0) + r.duration;
       }
       totalDays = dates.size;
-
-      // 连续天数
       let streak = 0;
-      const sorted = Array.from(dates).sort().reverse();
       let check = new Date(today);
-      if (!dates.has(today)) check.setDate(check.getDate() - 1);
-      for (let i = 0; i < 365; i++) {
+      if (!dates.has(today)) check.setDate(check.getDate()-1);
+      for (let i=0;i<365;i++) {
         const d = check.toISOString().split('T')[0];
-        if (dates.has(d)) { streak++; check.setDate(check.getDate() - 1); }
-        else break;
+        if (dates.has(d)) { streak++; check.setDate(check.getDate()-1); } else break;
       }
-
       return { todayMin, weekMin, monthMin, totalDays, streak, subjects };
     }
 
     // ==================== 计划管理 ====================
     function getPlans() {
-      try {
-        const d = localStorage.getItem(PLANS_KEY);
-        return d ? JSON.parse(d) : [];
-      } catch { return []; }
+      try { return JSON.parse(localStorage.getItem(PLANS_KEY) || '[]'); } catch { return []; }
     }
-
     function savePlan(plan) {
       const plans = getPlans();
       const idx = plans.findIndex(p => p.date === plan.date);
-      if (idx >= 0) plans[idx] = plan;
-      else plans.push(plan);
+      if (idx >= 0) plans[idx] = plan; else plans.push(plan);
       localStorage.setItem(PLANS_KEY, JSON.stringify(plans));
-      return plans;
     }
-
     function getTodayPlan() {
       const today = new Date().toISOString().split('T')[0];
       return getPlans().find(p => p.date === today) || null;
     }
 
-    function updatePlanItem(date, timeSlot, status) {
-      const plans = getPlans();
-      const plan = plans.find(p => p.date === date);
-      if (plan) {
-        const item = plan.items.find(i => i.time === timeSlot);
-        if (item) { item.status = status; localStorage.setItem(PLANS_KEY, JSON.stringify(plans)); }
-      }
-    }
+    // ==================== 今日计划面板 ====================
+    let editingPlanIdx = -1;
 
     function renderPlanPanel() {
-      const panel = document.getElementById('planPanel');
       const content = document.getElementById('planContent');
+      if (!content) return;
       const todayPlan = getTodayPlan();
 
       if (!todayPlan || !todayPlan.items?.length) {
-        content.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">暂无计划<br><small>输入"帮我安排今天的复习"创建</small></div>';
+        content.innerHTML = '<div style="text-align:center;color:#bbb;padding:16px;font-size:13px;">暂无计划<br><small>点击下方按钮或输入"帮我安排今天的复习"</small></div>';
         return;
       }
 
-      let html = `<div style="font-size:13px;color:#666;margin-bottom:10px;">${todayPlan.date} · ${todayPlan.items.filter(i=>i.status==='done').length}/${todayPlan.items.length} 已完成</div>`;
-
+      let html = `<div class="plan-header">${todayPlan.date} · ${todayPlan.items.filter(i=>i.status==='done').length}/${todayPlan.items.length} 已完成</div>`;
       todayPlan.items.forEach((item, idx) => {
-        const icon = item.status === 'done' ? '✅' : item.status === 'skipped' ? '⏭️' : '⬜';
-        const strike = item.status === 'done' ? 'text-decoration:line-through;opacity:0.6;' : '';
-        html += `<div class="plan-item" data-date="${todayPlan.date}" data-time="${item.time}" data-status="${item.status}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:#f8f9fa;margin-bottom:6px;cursor:pointer;${strike}" onclick="togglePlanItem(this)">
-          <span class="plan-icon" style="font-size:16px;">${icon}</span>
+        if (editingPlanIdx === idx) {
+          html += `<div class="plan-edit-form">
+            <input type="text" id="editTime-${idx}" value="${item.time}" placeholder="时间段 如 09:00-10:30">
+            <input type="text" id="editSubject-${idx}" value="${item.subject}" placeholder="科目">
+            <input type="text" id="editTask-${idx}" value="${item.task}" placeholder="任务内容">
+            <div class="plan-edit-btns">
+              <button class="plan-delete-btn" onclick="deletePlanItem(${idx})">删除</button>
+              <button class="plan-cancel-btn" onclick="cancelPlanEdit()">取消</button>
+              <button class="plan-save-btn" onclick="savePlanItemEdit(${idx})">保存</button>
+            </div>
+          </div>`;
+        } else {
+          const icon = item.status==='done'?'✅':item.status==='skipped'?'⏭️':'⬜';
+          html += `<div class="plan-item ${item.status==='done'?'done':''}">
+            <span class="plan-item-status" onclick="togglePlanItemByIdx(${idx})">${icon}</span>
+            <div class="plan-item-body" onclick="togglePlanItemByIdx(${idx})">
+              <div class="plan-item-name">${item.subject} - ${item.task}</div>
+              <div class="plan-item-time">${item.time}</div>
+            </div>
+            <button class="plan-action-btn" onclick="event.stopPropagation();editPlanItem(${idx})" title="编辑">✏️</button>
+          </div>`;
+        }
+      });
+      html += '<button class="plan-add-btn" onclick="addPlanItem()">＋ 添加计划项</button>';
+      content.innerHTML = html;
+    }
+
+    function togglePlanItemByIdx(idx) {
+      const p = getTodayPlan(); if (!p||!p.items[idx]) return;
+      const s = p.items[idx].status;
+      p.items[idx].status = s==='pending'?'done':s==='done'?'skipped':'pending';
+      savePlan(p); renderPlanPanel(); renderHistoryPlan();
+    }
+    function editPlanItem(idx) { editingPlanIdx = idx; renderPlanPanel(); const el = document.getElementById(`editTime-${idx}`); if(el) el.focus(); }
+    function cancelPlanEdit() { editingPlanIdx = -1; renderPlanPanel(); }
+    function savePlanItemEdit(idx) {
+      const p = getTodayPlan(); if (!p||!p.items[idx]) return;
+      const time = document.getElementById(`editTime-${idx}`).value.trim();
+      const subject = document.getElementById(`editSubject-${idx}`).value.trim();
+      const task = document.getElementById(`editTask-${idx}`).value.trim();
+      if (!subject||!task) { alert('科目和任务不能为空'); return; }
+      p.items[idx] = { ...p.items[idx], time, subject, task };
+      savePlan(p); editingPlanIdx = -1; renderPlanPanel();
+    }
+    function deletePlanItem(idx) {
+      const p = getTodayPlan(); if (!p) return;
+      p.items.splice(idx, 1);
+      if (p.items.length === 0) {
+        const plans = getPlans().filter(pl => pl.date !== p.date);
+        localStorage.setItem(PLANS_KEY, JSON.stringify(plans));
+      } else { savePlan(p); }
+      editingPlanIdx = -1; renderPlanPanel();
+    }
+    function addPlanItem() {
+      const p = getTodayPlan();
+      const today = new Date().toISOString().split('T')[0];
+      if (!p) {
+        savePlan({ date: today, items: [{ time:'', subject:'', task:'', status:'pending' }] });
+        editingPlanIdx = 0;
+      } else {
+        p.items.push({ time:'', subject:'', task:'', status:'pending' });
+        savePlan(p); editingPlanIdx = p.items.length - 1;
+      }
+      renderPlanPanel();
+      const el = document.getElementById(`editTime-${editingPlanIdx}`); if(el) el.focus();
+    }
+
+    // ==================== 历史计划 ====================
+    let historyDateIdx = -1; // index into sorted history dates (excluding today)
+    let historyDates = [];   // sorted descending
+
+    function buildHistoryDates() {
+      const today = new Date().toISOString().split('T')[0];
+      const plans = getPlans();
+      historyDates = plans.map(p=>p.date).filter(d=>d<today).sort().reverse();
+    }
+
+    function renderHistoryPlan() {
+      const content = document.getElementById('historyContent');
+      const dateEl = document.getElementById('historyDate');
+      const prevBtn = document.getElementById('historyPrevBtn');
+      const nextBtn = document.getElementById('historyNextBtn');
+      if (!content) return;
+
+      buildHistoryDates();
+
+      if (historyDates.length === 0) {
+        dateEl.textContent = '暂无';
+        prevBtn.disabled = true; nextBtn.disabled = true;
+        content.innerHTML = '<div class="history-empty">还没有历史计划</div>';
+        return;
+      }
+
+      if (historyDateIdx < 0) historyDateIdx = 0;
+      if (historyDateIdx >= historyDates.length) historyDateIdx = historyDates.length - 1;
+
+      const date = historyDates[historyDateIdx];
+      dateEl.textContent = date;
+      prevBtn.disabled = historyDateIdx >= historyDates.length - 1;
+      nextBtn.disabled = historyDateIdx <= 0;
+
+      const plan = getPlans().find(p=>p.date===date);
+      if (!plan || !plan.items?.length) {
+        content.innerHTML = '<div class="history-empty">该日无计划</div>';
+        return;
+      }
+
+      let html = '';
+      plan.items.forEach(item => {
+        const icon = item.status==='done'?'✅':item.status==='skipped'?'⏭️':'⬜';
+        html += `<div class="history-item">
+          <span class="history-item-status">${icon}</span>
           <div style="flex:1;">
-            <div style="font-size:14px;font-weight:500;">${item.subject} - ${item.task}</div>
-            <div style="font-size:12px;color:#999;">${item.time}</div>
+            <span class="history-item-name">${item.subject}</span>
+            <span style="color:#999;font-size:11px;"> - ${item.task}</span>
           </div>
+          <span class="history-item-time">${item.time}</span>
         </div>`;
       });
-
+      const done = plan.items.filter(i=>i.status==='done').length;
+      html += `<div style="font-size:11px;color:#999;text-align:center;margin-top:6px;">完成 ${done}/${plan.items.length}</div>`;
       content.innerHTML = html;
     }
 
-    function togglePlanItem(el) {
-      const date = el.dataset.date;
-      const time = el.dataset.time;
-      const currentStatus = el.dataset.status;
-
-      let newStatus;
-      if (currentStatus === 'pending') newStatus = 'done';
-      else if (currentStatus === 'done') newStatus = 'skipped';
-      else newStatus = 'pending';
-
-      updatePlanItem(date, time, newStatus);
-      renderPlanPanel();
-    }
+    function historyPrev() { if (historyDateIdx < historyDates.length-1) { historyDateIdx++; renderHistoryPlan(); } }
+    function historyNext() { if (historyDateIdx > 0) { historyDateIdx--; renderHistoryPlan(); } }
 
     // ==================== 学习统计面板 ====================
-    let statsPieChart = null;
-    let statsLineChart = null;
+    let statsPieChart = null, statsLineChart = null;
 
     function formatDuration(min) {
-      if (min < 60) return `${min}分钟`;
-      const h = Math.floor(min / 60);
-      const m = min % 60;
-      return m > 0 ? `${h}小时${m}分钟` : `${h}小时`;
+      if (min<60) return `${min}分钟`;
+      const h=Math.floor(min/60), m=min%60;
+      return m>0?`${h}小时${m}分钟`:`${h}小时`;
     }
-
     function getPlanCompletionRate() {
       const plans = getPlans();
-      let totalItems = 0, doneItems = 0;
-      plans.forEach(p => {
-        if (p.items) {
-          totalItems += p.items.length;
-          doneItems += p.items.filter(i => i.status === 'done').length;
-        }
-      });
-      const todayPlan = getTodayPlan();
-      const todayTotal = todayPlan?.items?.length || 0;
-      const todayDone = todayPlan?.items?.filter(i => i.status === 'done').length || 0;
-      return {
-        todayDone, todayTotal,
-        totalDone: doneItems, totalItems,
-        rate: totalItems > 0 ? Math.round(doneItems / totalItems * 100) : 0
-      };
+      let total=0, done=0;
+      plans.forEach(p=>{ if(p.items){total+=p.items.length; done+=p.items.filter(i=>i.status==='done').length;} });
+      const tp = getTodayPlan();
+      return { todayDone:tp?.items?.filter(i=>i.status==='done').length||0, todayTotal:tp?.items?.length||0, totalDone:done, totalItems:total, rate:total>0?Math.round(done/total*100):0 };
     }
 
-    function renderStatsPanel() {
-      const content = document.getElementById('statsContent');
+    function renderStatsPanel(targetId) {
+      const content = document.getElementById(targetId || 'statsContent');
+      if (!content) return;
       const profile = getProfile();
       const stats = getStudyStats();
-      const planRate = getPlanCompletionRate();
+      const pr = getPlanCompletionRate();
       const hasData = stats.totalDays > 0;
 
-      // 备考进度区
-      let html = '<div class="stat-card">';
-      html += '<div class="stat-card-title">📅 备考进度</div>';
+      let html = '<div class="stat-card"><div class="stat-card-title">📅 备考进度</div>';
       if (profile?.examDate) {
-        const days = Math.ceil((new Date(profile.examDate) - Date.now()) / 86400000);
-        const totalDays = Math.ceil((new Date(profile.examDate) - new Date(profile.createdAt || Date.now())) / 86400000);
-        const elapsed = totalDays - days;
-        const progress = totalDays > 0 ? Math.min(100, Math.max(0, Math.round(elapsed / totalDays * 100))) : 0;
-        html += `<div style="font-size:14px;margin-bottom:6px;">距离考研 <strong style="color:#667eea;font-size:18px;">${days}</strong> 天</div>`;
-        html += `<div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${progress}%"></div></div>`;
-        html += `<div style="font-size:11px;color:#999;margin-top:4px;">备考进度 ${progress}%</div>`;
+        const days = Math.ceil((new Date(profile.examDate)-Date.now())/86400000);
+        const total = Math.ceil((new Date(profile.examDate)-new Date(profile.createdAt||Date.now()))/86400000);
+        const prog = total>0?Math.min(100,Math.max(0,Math.round((total-days)/total*100))):0;
+        html += `<div style="font-size:13px;margin-bottom:4px;">距考研 <strong style="color:#667eea;font-size:16px;">${days}</strong> 天</div>`;
+        html += `<div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${prog}%"></div></div>`;
+        html += `<div style="font-size:10px;color:#999;margin-top:3px;">进度 ${prog}%</div>`;
       } else {
-        html += '<div style="font-size:13px;color:#999;">未设置考试日期<br><small>告诉我"12月21号考试"即可设置</small></div>';
+        html += '<div style="font-size:12px;color:#bbb;">未设置考试日期</div>';
       }
-      if (stats.streak >= 1) {
-        html += `<div style="margin-top:8px;"><span class="streak-badge">🔥 连续学习 ${stats.streak} 天</span></div>`;
-      }
+      if (stats.streak>=1) html += `<div style="margin-top:6px;"><span class="streak-badge">🔥 连续 ${stats.streak} 天</span></div>`;
       html += '</div>';
 
-      // 学习时长区
-      html += '<div class="stat-card">';
-      html += '<div class="stat-card-title">⏱️ 学习时长</div>';
-      html += '<div class="stat-row">';
-      html += `<div class="stat-item"><div class="stat-value">${Math.round(stats.todayMin/60*10)/10}</div><div class="stat-label">今日(小时)</div></div>`;
-      html += `<div class="stat-item"><div class="stat-value">${Math.round(stats.weekMin/60*10)/10}</div><div class="stat-label">本周(小时)</div></div>`;
-      html += `<div class="stat-item"><div class="stat-value">${Math.round((stats.monthMin||0)/60*10)/10}</div><div class="stat-label">本月(小时)</div></div>`;
+      html += '<div class="stat-card"><div class="stat-card-title">⏱️ 学习时长</div><div class="stat-row">';
+      html += `<div class="stat-item"><div class="stat-value">${Math.round(stats.todayMin/60*10)/10}</div><div class="stat-label">今日(h)</div></div>`;
+      html += `<div class="stat-item"><div class="stat-value">${Math.round(stats.weekMin/60*10)/10}</div><div class="stat-label">本周(h)</div></div>`;
+      html += `<div class="stat-item"><div class="stat-value">${Math.round((stats.monthMin||0)/60*10)/10}</div><div class="stat-label">本月(h)</div></div>`;
       html += '</div>';
-      html += `<div style="text-align:center;margin-top:8px;font-size:12px;color:#999;">累计学习 ${stats.totalDays} 天</div>`;
+      html += `<div style="text-align:center;margin-top:6px;font-size:11px;color:#999;">累计 ${stats.totalDays} 天</div></div>`;
+
+      html += '<div class="stat-card"><div class="stat-card-title">📈 近7天趋势</div>';
+      if (hasData) html += `<div class="chart-container"><canvas id="${targetId?'overlayTrend':'trendChart'}"></canvas></div>`;
+      else html += '<div style="text-align:center;color:#ccc;padding:16px;font-size:12px;">暂无数据</div>';
       html += '</div>';
 
-      // 近7天趋势图
-      html += '<div class="stat-card">';
-      html += '<div class="stat-card-title">📈 近7天趋势</div>';
-      if (hasData) {
-        html += '<div class="chart-container"><canvas id="trendChart"></canvas></div>';
-      } else {
-        html += '<div style="text-align:center;color:#999;padding:20px;font-size:13px;">暂无学习数据</div>';
-      }
+      html += '<div class="stat-card"><div class="stat-card-title">📚 四科分布</div>';
+      if (hasData&&Object.keys(stats.subjects).length>0) html += `<div class="chart-container"><canvas id="${targetId?'overlaySubject':'subjectChart'}"></canvas></div>`;
+      else html += '<div style="text-align:center;color:#ccc;padding:16px;font-size:12px;">暂无数据</div>';
       html += '</div>';
 
-      // 四科分布饼图
-      html += '<div class="stat-card">';
-      html += '<div class="stat-card-title">📚 四科分布</div>';
-      if (hasData && Object.keys(stats.subjects).length > 0) {
-        html += '<div class="chart-container"><canvas id="subjectChart"></canvas></div>';
-      } else {
-        html += '<div style="text-align:center;color:#999;padding:20px;font-size:13px;">暂无科目数据</div>';
-      }
-      html += '</div>';
-
-      // 计划完成率
-      html += '<div class="stat-card">';
-      html += '<div class="stat-card-title">✅ 计划完成率</div>';
-      html += '<div class="stat-row">';
-      html += `<div class="stat-item"><div class="stat-value">${planRate.todayDone}/${planRate.todayTotal}</div><div class="stat-label">今日完成</div></div>`;
-      html += `<div class="stat-item"><div class="stat-value">${planRate.rate}%</div><div class="stat-label">累计完成率</div></div>`;
-      html += '</div>';
-      html += '</div>';
+      html += '<div class="stat-card"><div class="stat-card-title">✅ 计划完成率</div><div class="stat-row">';
+      html += `<div class="stat-item"><div class="stat-value">${pr.todayDone}/${pr.todayTotal}</div><div class="stat-label">今日</div></div>`;
+      html += `<div class="stat-item"><div class="stat-value">${pr.rate}%</div><div class="stat-label">累计</div></div>`;
+      html += '</div></div>';
 
       content.innerHTML = html;
 
-      // 渲染图表
-      if (typeof Chart !== 'undefined') {
-        if (hasData) renderTrendLineChart();
-        if (hasData && Object.keys(stats.subjects).length > 0) renderSubjectPieChart();
+      if (typeof Chart !== 'undefined' && hasData) {
+        renderTrendLineChart(targetId?'overlayTrend':'trendChart');
+        if (Object.keys(stats.subjects).length>0) renderSubjectPieChart(targetId?'overlaySubject':'subjectChart');
       }
     }
 
-    function renderTrendLineChart() {
+    function renderTrendLineChart(canvasId) {
       const records = getStudyRecords();
-      const labels = [];
-      const data = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
-        const dayLabel = `${d.getMonth()+1}/${d.getDate()}`;
-        labels.push(dayLabel);
-        const dayMin = records.filter(r => r.date === dateStr).reduce((s, r) => s + r.duration, 0);
-        data.push(Math.round(dayMin / 60 * 10) / 10);
+      const labels=[], data=[];
+      for (let i=6;i>=0;i--) {
+        const d=new Date(); d.setDate(d.getDate()-i);
+        labels.push(`${d.getMonth()+1}/${d.getDate()}`);
+        data.push(Math.round(records.filter(r=>r.date===d.toISOString().split('T')[0]).reduce((s,r)=>s+r.duration,0)/60*10)/10);
       }
-
-      const ctx = document.getElementById('trendChart');
-      if (!ctx) return;
-      if (statsLineChart) statsLineChart.destroy();
-      statsLineChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label: '学习时长(小时)',
-            data,
-            borderColor: '#667eea',
-            backgroundColor: 'rgba(102,126,234,0.1)',
-            fill: true,
-            tension: 0.4,
-            pointBackgroundColor: '#667eea',
-            pointRadius: 4,
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            y: { beginAtZero: true, ticks: { font: { size: 11 } } },
-            x: { ticks: { font: { size: 11 } } }
-          }
-        }
-      });
+      const ctx = document.getElementById(canvasId); if (!ctx) return;
+      if (canvasId==='trendChart'&&statsLineChart) statsLineChart.destroy();
+      const chart = new Chart(ctx, { type:'line', data:{ labels, datasets:[{ label:'小时', data, borderColor:'#667eea', backgroundColor:'rgba(102,126,234,0.08)', fill:true, tension:0.4, pointRadius:3 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,ticks:{font:{size:10}}},x:{ticks:{font:{size:10}}}} } });
+      if (canvasId==='trendChart') statsLineChart = chart;
     }
 
-    function renderSubjectPieChart() {
+    function renderSubjectPieChart(canvasId) {
       const stats = getStudyStats();
-      const subjects = stats.subjects;
-      const labels = Object.keys(subjects);
-      const data = labels.map(k => Math.round(subjects[k] / 60 * 10) / 10);
-      const colors = ['#667eea', '#764ba2', '#f093fb', '#51cf66', '#ffa94d', '#ff6b6b'];
-
-      const ctx = document.getElementById('subjectChart');
-      if (!ctx) return;
-      if (statsPieChart) statsPieChart.destroy();
-      statsPieChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels,
-          datasets: [{
-            data,
-            backgroundColor: colors.slice(0, labels.length),
-            borderWidth: 2,
-            borderColor: '#fff',
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: { font: { size: 12 }, padding: 12 }
-            }
-          }
-        }
-      });
+      const labels=Object.keys(stats.subjects), data=labels.map(k=>Math.round(stats.subjects[k]/60*10)/10);
+      const colors=['#667eea','#764ba2','#f093fb','#51cf66','#ffa94d','#ff6b6b'];
+      const ctx = document.getElementById(canvasId); if (!ctx) return;
+      if (canvasId==='subjectChart'&&statsPieChart) statsPieChart.destroy();
+      const chart = new Chart(ctx, { type:'doughnut', data:{ labels, datasets:[{ data, backgroundColor:colors.slice(0,labels.length), borderWidth:2, borderColor:'#fff' }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:10}}} } });
+      if (canvasId==='subjectChart') statsPieChart = chart;
     }
 
-    // ==================== 生成记忆上下文（发送给LLM） ====================
+    // ==================== Sidebar tab switching ====================
+    function switchSidebarTab(tab) {
+      document.querySelectorAll('.sidebar-tabs .sidebar-tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
+      document.getElementById('sidebarPlan').style.display = tab==='plan'?'':'none';
+      document.getElementById('sidebarStats').style.display = tab==='stats'?'':'none';
+      if (tab==='plan') { renderPlanPanel(); renderHistoryPlan(); }
+      if (tab==='stats') renderStatsPanel();
+    }
+
+    // ==================== Mobile overlay ====================
+    function openSidebarOverlay() {
+      document.getElementById('sidebarOverlay').classList.add('open');
+      renderPlanPanel();
+      renderHistoryPlan();
+      // Also render into overlay
+      document.getElementById('overlayPlanContent').innerHTML = document.getElementById('planContent').innerHTML;
+    }
+    function closeSidebarOverlay() { document.getElementById('sidebarOverlay').classList.remove('open'); }
+    function switchOverlayTab(tab) {
+      document.querySelectorAll('#sidebarOverlay .sidebar-tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
+      document.getElementById('overlayPlan').style.display = tab==='plan'?'':'none';
+      document.getElementById('overlayStats').style.display = tab==='stats'?'':'none';
+      if (tab==='stats') renderStatsPanel('overlayStatsContent');
+    }
+
+    // ==================== 记忆上下文 ====================
     function getMemoryContext() {
-      const profile = getProfile();
-      const stats = getStudyStats();
-      const todayPlan = getTodayPlan();
-      let ctx = '';
-
+      const profile=getProfile(), stats=getStudyStats(), plan=getTodayPlan();
+      let ctx='';
       if (profile) {
-        ctx += '【用户档案】\n';
-        if (profile.name) ctx += `姓名: ${profile.name}\n`;
-        if (profile.targetSchool) ctx += `目标院校: ${profile.targetSchool}\n`;
-        if (profile.targetMajor) ctx += `目标专业: ${profile.targetMajor}\n`;
-        if (profile.examDate) {
-          const days = Math.ceil((new Date(profile.examDate) - Date.now()) / 86400000);
-          ctx += `考试日期: ${profile.examDate} (还有${days}天)\n`;
-        }
-        if (profile.stage) ctx += `备考阶段: ${profile.stage}\n`;
-        if (profile.weakPoints?.length) ctx += `薄弱点: ${profile.weakPoints.join('、')}\n`;
-        ctx += '\n';
+        ctx+='【用户档案】\n';
+        if(profile.name) ctx+=`姓名: ${profile.name}\n`;
+        if(profile.targetSchool) ctx+=`目标院校: ${profile.targetSchool}\n`;
+        if(profile.targetMajor) ctx+=`目标专业: ${profile.targetMajor}\n`;
+        if(profile.examDate) { const d=Math.ceil((new Date(profile.examDate)-Date.now())/86400000); ctx+=`考试日期: ${profile.examDate} (还有${d}天)\n`; }
+        if(profile.stage) ctx+=`备考阶段: ${profile.stage}\n`;
+        if(profile.weakPoints?.length) ctx+=`薄弱点: ${profile.weakPoints.join('、')}\n`;
+        ctx+='\n';
       }
-
-      if (stats.totalDays > 0) {
-        ctx += '【学习统计】\n';
-        ctx += `累计${stats.totalDays}天，连续${stats.streak}天\n`;
-        ctx += `今日${stats.todayMin}分钟，本周${stats.weekMin}分钟\n`;
-        const dist = Object.entries(stats.subjects).map(([k,v]) => `${k}${Math.round(v/60)}h`).join('、');
-        if (dist) ctx += `各科: ${dist}\n`;
-        ctx += '\n';
+      if (stats.totalDays>0) {
+        ctx+='【学习统计】\n';
+        ctx+=`累计${stats.totalDays}天，连续${stats.streak}天\n`;
+        ctx+=`今日${stats.todayMin}分钟，本周${stats.weekMin}分钟\n`;
+        const dist=Object.entries(stats.subjects).map(([k,v])=>`${k}${Math.round(v/60)}h`).join('、');
+        if(dist) ctx+=`各科: ${dist}\n\n`;
       }
-
-      if (todayPlan && todayPlan.items?.length) {
-        const pending = todayPlan.items.filter(i => i.status === 'pending');
-        const done = todayPlan.items.filter(i => i.status === 'done');
-        ctx += '【今日计划】\n';
-        if (done.length) ctx += `已完成: ${done.map(i => i.subject + '-' + i.task).join('、')}\n`;
-        if (pending.length) ctx += `待完成: ${pending.map(i => i.time + ' ' + i.subject + '-' + i.task).join('、')}\n`;
-        ctx += '\n';
+      if (plan?.items?.length) {
+        const done=plan.items.filter(i=>i.status==='done'), pending=plan.items.filter(i=>i.status==='pending');
+        ctx+='【今日计划】\n';
+        if(done.length) ctx+=`已完成: ${done.map(i=>i.subject+'-'+i.task).join('、')}\n`;
+        if(pending.length) ctx+=`待完成: ${pending.map(i=>i.time+' '+i.subject+'-'+i.task).join('、')}\n\n`;
       }
-
       return ctx;
     }
+    function getPlansJson() { return JSON.stringify(getPlans()); }
 
-    function getPlansJson() {
-      return JSON.stringify(getPlans());
+    // ==================== 提取并保存信息 ====================
+    function extractAndSave(m) {
+      const nameMatch=m.match(/我叫([一-龥]{2,4})|我是([一-龥]{2,4})/);
+      if(nameMatch) saveProfile({name:nameMatch[1]||nameMatch[2]});
+      const schoolMatch=m.match(/考([一-龥]{2,10}大学|[一-龥]{2,10}学院)|目标[是校]([一-龥]{2,10})|报考([一-龥]{2,10})/);
+      if(schoolMatch) saveProfile({targetSchool:schoolMatch[1]||schoolMatch[2]||schoolMatch[3]});
+      const studyMatch=m.match(/学了(\d+)(小时|h|分钟|min)([一-龥\w]+)/i);
+      if(studyMatch) { const dur=studyMatch[2].includes('分')?parseInt(studyMatch[1]):parseInt(studyMatch[1])*60; addStudyRecord({date:new Date().toISOString().split('T')[0],subject:studyMatch[3].trim(),duration:dur,content:m,completed:true}); }
+      const examMatch=m.match(/(\d{1,2})月(\d{1,2})[号日].*考试|考试.*(\d{4})-(\d{1,2})-(\d{1,2})/);
+      if(examMatch) { const y=examMatch[3]?parseInt(examMatch[3]):new Date().getFullYear(); const mo=examMatch[3]?parseInt(examMatch[4]):parseInt(examMatch[1]); const d=examMatch[3]?parseInt(examMatch[5]):parseInt(examMatch[2]); saveProfile({examDate:`${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`}); }
+      const stageMatch=m.match(/(基础|强化|冲刺|考前)阶段/);
+      if(stageMatch) saveProfile({stage:stageMatch[1]+'阶段'});
+      const weakMatch=m.match(/([一-龥]{2,6})是[我的]?弱[项点科]|([一-龥]{2,6})薄弱/);
+      if(weakMatch) { const w=weakMatch[1]||weakMatch[2]; const p=getProfile()||{subjects:[]}; const ex=p.weakPoints||[]; if(!ex.includes(w)) saveProfile({weakPoints:[...ex,w]}); }
     }
 
-    // ==================== 从消息中提取并保存信息 ====================
-    function extractAndSave(message) {
-      const m = message;
-
-      // 提取姓名：我叫xxx / 我是xxx
-      const nameMatch = m.match(/我叫([一-龥]{2,4})|我是([一-龥]{2,4})/);
-      if (nameMatch) saveProfile({ name: nameMatch[1] || nameMatch[2] });
-
-      // 提取目标院校：考xxx / 目标xxx / 报考xxx
-      const schoolMatch = m.match(/考([一-龥]{2,10}大学|[一-龥]{2,10}学院)|目标[是校]([一-龥]{2,10})|报考([一-龥]{2,10})/);
-      if (schoolMatch) saveProfile({ targetSchool: schoolMatch[1] || schoolMatch[2] || schoolMatch[3] });
-
-      // 提取学习记录：学了X小时xxx
-      const studyMatch = m.match(/学了(\d+)(小时|h|分钟|min)([一-龥\w]+)/i);
-      if (studyMatch) {
-        const dur = studyMatch[2].includes('分') ? parseInt(studyMatch[1]) : parseInt(studyMatch[1]) * 60;
-        addStudyRecord({
-          date: new Date().toISOString().split('T')[0],
-          subject: studyMatch[3].trim(),
-          duration: dur,
-          content: m,
-          completed: true,
-        });
-      }
-
-      // 提取考试日期：12月21号考试 / 考试日期是2026-12-21
-      const examMatch = m.match(/(\d{1,2})月(\d{1,2})[号日].*考试|考试.*(\d{4})-(\d{1,2})-(\d{1,2})/);
-      if (examMatch) {
-        const year = examMatch[3] ? parseInt(examMatch[3]) : new Date().getFullYear();
-        const month = examMatch[3] ? parseInt(examMatch[4]) : parseInt(examMatch[1]);
-        const day = examMatch[3] ? parseInt(examMatch[5]) : parseInt(examMatch[2]);
-        const examDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        saveProfile({ examDate });
-      }
-
-      // 提取备考阶段：基础阶段 / 强化阶段 / 冲刺阶段
-      const stageMatch = m.match(/(基础|强化|冲刺|考前)阶段/);
-      if (stageMatch) saveProfile({ stage: stageMatch[1] + '阶段' });
-
-      // 提取薄弱点：xxx是弱项 / xxx薄弱
-      const weakMatch = m.match(/([一-龥]{2,6})是[我的]?弱[项点科]|([一-龥]{2,6})薄弱/);
-      if (weakMatch) {
-        const weak = weakMatch[1] || weakMatch[2];
-        const profile = getProfile() || { subjects: [] };
-        const existing = profile.weakPoints || [];
-        if (!existing.includes(weak)) {
-          saveProfile({ weakPoints: [...existing, weak] });
-        }
-      }
-    }
-
-    // ==================== WebSocket连接 ====================
+    // ==================== WebSocket ====================
     const messagesContainer = document.getElementById('messages');
     const messageInput = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
@@ -836,219 +860,143 @@
     const statusText = document.getElementById('statusText');
     const typingIndicator = document.getElementById('typingIndicator');
 
-    let ws = null;
-    let deviceId = getOrCreateDeviceId();
-    let chatHistory = loadChatHistory();
+    let ws = null, deviceId = getOrCreateDeviceId(), chatHistory = loadChatHistory();
+
+    function addDateSeparator(dateStr) {
+      const sep = document.createElement('div');
+      sep.className = 'date-separator';
+      const today = new Date().toISOString().split('T')[0];
+      const yesterday = new Date(Date.now()-86400000).toISOString().split('T')[0];
+      let label = dateStr;
+      if (dateStr===today) label='今天'; else if (dateStr===yesterday) label='昨天';
+      sep.innerHTML = `<span>${label}</span>`;
+      messagesContainer.insertBefore(sep, typingIndicator);
+    }
 
     function restoreChatHistory() {
-      chatHistory.forEach(msg => addMessage(msg.text, msg.type, false));
+      let lastDate = '';
+      chatHistory.forEach(msg => {
+        const msgDate = new Date(msg.timestamp).toISOString().split('T')[0];
+        if (msgDate !== lastDate) { addDateSeparator(msgDate); lastDate = msgDate; }
+        addMessage(msg.text, msg.type, false);
+      });
       if (chatHistory.length === 0) {
         const profile = getProfile();
-        const greeting = profile?.name
-          ? `你好${profile.name}！欢迎回来！我是考研小管家，你的AI考研备考助手。今天继续加油吧！`
-          : '你好！我是考研小管家，你的AI考研备考助手。你可以先告诉我你的名字和目标院校，我会记住的！\n\n我可以帮你：\n1. 记录每日学习\n2. 制定复习计划\n3. 解答考研问题\n4. 管理备考进度';
-        addMessage(greeting, 'assistant', true);
+        if (profile?.name) {
+          addMessage(`你好${profile.name}！欢迎回来！今天继续加油吧！`, 'assistant', true);
+        } else {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'message-wrapper assistant';
+          wrapper.innerHTML = `<div class="msg-avatar">🤖</div><div class="msg-content"><div class="welcome-card"><h3>👋 你好！我是考研小管家</h3><div class="welcome-features">
+            <div class="welcome-feature" onclick="quickSend('我叫小明，考浙大计算机')"><span class="wf-icon">📝</span><span class="wf-text">设置考研信息</span></div>
+            <div class="welcome-feature" onclick="quickSend('帮我安排今天的复习')"><span class="wf-icon">📋</span><span class="wf-text">制定复习计划</span></div>
+            <div class="welcome-feature" onclick="quickSend('什么是泰勒展开？')"><span class="wf-icon">❓</span><span class="wf-text">知识问答</span></div>
+            <div class="welcome-feature" onclick="quickSend('今天学了2小时高数')"><span class="wf-icon">⏱️</span><span class="wf-text">记录学习</span></div>
+          </div></div><div class="msg-time">${new Date().getHours().toString().padStart(2,'0')}:${new Date().getMinutes().toString().padStart(2,'0')}</div></div>`;
+          messagesContainer.insertBefore(wrapper, typingIndicator);
+          chatHistory.push({ text:'[欢迎卡片]', type:'assistant', timestamp:Date.now() });
+          saveChatHistory(chatHistory);
+        }
       }
     }
 
     function connect() {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const protocol = window.location.protocol==='https:'?'wss:':'ws:';
       ws = new WebSocket(`${protocol}//${window.location.host}`);
-
-      ws.onopen = () => {
-        statusDot.classList.add('connected');
-        statusText.textContent = '已连接';
-        sendBtn.disabled = false;
-      };
-
+      ws.onopen = () => { statusDot.classList.add('connected'); statusText.textContent='已连接'; sendBtn.disabled=false; };
       ws.onmessage = (event) => {
         const message = JSON.parse(event.data);
-        if (message.type === 'chat' && message.text) {
-          hideTyping();
-          addMessage(message.text, 'assistant', true);
-
-          // 处理计划数据
-          if (message.planData && message.planData.items) {
-            savePlan(message.planData);
-            renderPlanPanel();
-          }
-
-          // 统计面板打开时自动刷新
-          if (document.getElementById('statsPanel').classList.contains('open')) {
-            renderStatsPanel();
-          }
+        if (message.type==='chat'&&message.text) {
+          hideTyping(); addMessage(message.text, 'assistant', true);
+          if (message.planData?.items) { savePlan(message.planData); renderPlanPanel(); renderHistoryPlan(); }
         }
       };
-
-      ws.onclose = () => {
-        statusDot.classList.remove('connected');
-        statusText.textContent = '未连接';
-        sendBtn.disabled = true;
-        setTimeout(connect, 5000);
-      };
+      ws.onclose = () => { statusDot.classList.remove('connected'); statusText.textContent='未连接'; sendBtn.disabled=true; setTimeout(connect, 5000); };
     }
 
-    function addMessage(text, type, save = true) {
-      const div = document.createElement('div');
-      div.className = `message ${type}`;
-      div.textContent = text;
-      messagesContainer.insertBefore(div, typingIndicator);
+    function addMessage(text, type, save=true) {
+      const wrapper = document.createElement('div');
+      wrapper.className = `message-wrapper ${type}`;
+      const avatar = document.createElement('div');
+      avatar.className = 'msg-avatar';
+      avatar.textContent = type==='user'?'👤':'🤖';
+      const content = document.createElement('div');
+      content.className = 'msg-content';
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message ${type}`;
+      if (type==='assistant'&&text.length>500) {
+        msgDiv.classList.add('collapsed'); msgDiv.textContent=text;
+        const btn = document.createElement('button');
+        btn.className='msg-expand-btn'; btn.textContent='展开全文';
+        btn.onclick=()=>{ msgDiv.classList.toggle('collapsed'); btn.textContent=msgDiv.classList.contains('collapsed')?'展开全文':'收起'; };
+        content.appendChild(msgDiv); content.appendChild(btn);
+      } else { msgDiv.textContent=text; content.appendChild(msgDiv); }
+      const timeDiv = document.createElement('div');
+      timeDiv.className='msg-time';
+      const now=new Date();
+      timeDiv.textContent=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      content.appendChild(timeDiv);
+      wrapper.appendChild(avatar); wrapper.appendChild(content);
+      messagesContainer.insertBefore(wrapper, typingIndicator);
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-      if (save) {
-        chatHistory.push({ text, type, timestamp: Date.now() });
-        saveChatHistory(chatHistory);
-      }
+      if (save) { chatHistory.push({text,type,timestamp:Date.now()}); saveChatHistory(chatHistory); }
     }
 
     function showTyping() {
-      typingIndicator.style.display = 'block';
+      typingIndicator.style.display='flex';
+      if (!typingIndicator.querySelector('.thinking-text')) {
+        const t=document.createElement('span'); t.className='thinking-text';
+        t.innerHTML='AI正在思考<span class="thinking-dots"></span>';
+        typingIndicator.insertBefore(t, typingIndicator.firstChild);
+      }
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
-
-    function hideTyping() {
-      typingIndicator.style.display = 'none';
-    }
+    function hideTyping() { typingIndicator.style.display='none'; }
 
     function sendMessage() {
       const text = messageInput.value.trim();
-      if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
-
-      addMessage(text, 'user', true);
-      showTyping();
-
-      // 从消息中提取信息并保存
-      extractAndSave(text);
-
-      // 发送消息时带上记忆上下文和计划数据
-      ws.send(JSON.stringify({
-        type: 'chat',
-        text: text,
-        deviceId: deviceId,
-        timestamp: Date.now(),
-        memoryContext: getMemoryContext(),
-        plansJson: getPlansJson(),
-      }));
-
-      messageInput.value = '';
+      if (!text||!ws||ws.readyState!==WebSocket.OPEN) return;
+      addMessage(text, 'user', true); showTyping(); extractAndSave(text);
+      ws.send(JSON.stringify({ type:'chat', text, deviceId, timestamp:Date.now(), memoryContext:getMemoryContext(), plansJson:getPlansJson() }));
+      messageInput.value=''; messageInput.focus();
     }
+
+    function quickSend(text) { messageInput.value=text; sendMessage(); }
 
     sendBtn.addEventListener('click', sendMessage);
-    messageInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') sendMessage();
-    });
+    messageInput.addEventListener('keypress', e => { if(e.key==='Enter') sendMessage(); });
+    document.getElementById('mobileSidebarBtn').addEventListener('click', openSidebarOverlay);
 
-    // ==================== 主动提醒系统 ====================
-    // 每种提醒独立追踪，互不阻塞。格式: kaoyan-reminder-{type}-{date}
-    function wasShownToday(key) {
-      return localStorage.getItem(`kaoyan-reminder-${key}-${new Date().toISOString().split('T')[0]}`) === '1';
-    }
-    function markShownToday(key) {
-      localStorage.setItem(`kaoyan-reminder-${key}-${new Date().toISOString().split('T')[0]}`, '1');
-    }
-
+    // ==================== 主动提醒 ====================
+    function wasShownToday(key) { return localStorage.getItem(`kaoyan-reminder-${key}-${new Date().toISOString().split('T')[0]}`)==='1'; }
+    function markShownToday(key) { localStorage.setItem(`kaoyan-reminder-${key}-${new Date().toISOString().split('T')[0]}`, '1'); }
     function checkReminders() {
-      const profile = getProfile();
-      const stats = getStudyStats();
-      const todayPlan = getTodayPlan();
-      const allReminders = [];
-
-      // 新用户引导：只显示一次（永久）
-      if (!profile && stats.totalDays === 0 && !localStorage.getItem('kaoyan-guide-shown')) {
-        localStorage.setItem('kaoyan-guide-shown', '1');
-        allReminders.push('💡 小贴士：你可以告诉我以下信息，我会记住并帮你更好地备考：\n\n• 你的名字（"我叫小明"）\n• 目标院校（"考浙大计算机"）\n• 考试日期（"12月21号考试"）\n• 薄弱科目（"高数是弱项"）\n\n然后试试说"帮我安排今天的复习"或"什么是泰勒展开？"');
+      const profile=getProfile(), stats=getStudyStats(), plan=getTodayPlan();
+      const all=[];
+      if(!profile&&stats.totalDays===0&&!localStorage.getItem('kaoyan-guide-shown')) {
+        localStorage.setItem('kaoyan-guide-shown','1');
+        all.push('💡 小贴士：告诉我你的名字、目标院校、考试日期，我会记住的！\n试试右侧的快捷操作开始吧。');
       }
-
-      // 考试倒计时：每天一次
-      if (profile?.examDate && !wasShownToday('exam')) {
-        const days = Math.ceil((new Date(profile.examDate) - Date.now()) / 86400000);
-        if (days > 0 && days <= 365) {
-          markShownToday('exam');
-          allReminders.push(`距离考研还有 ${days} 天，${days <= 30 ? '最后冲刺！' : days <= 90 ? '进入冲刺阶段了，加油！' : '坚持就是胜利！'}`);
-        }
+      if(profile?.examDate&&!wasShownToday('exam')) { const d=Math.ceil((new Date(profile.examDate)-Date.now())/86400000); if(d>0&&d<=365){markShownToday('exam');all.push(`距离考研还有 ${d} 天，${d<=30?'最后冲刺！':d<=90?'进入冲刺阶段了！':'坚持就是胜利！'}`);} }
+      if(stats.todayMin===0&&stats.totalDays>0&&!wasShownToday('no-study')) { markShownToday('no-study'); all.push('今天还没开始学习哦，先从擅长的科目开始吧！'); }
+      if(stats.streak>=3&&!wasShownToday('streak')) { markShownToday('streak'); all.push(`你已经连续学习 ${stats.streak} 天了，太棒了！`); }
+      if(plan?.items?.length) { const p=plan.items.filter(i=>i.status==='pending'); if(p.length>0&&!wasShownToday('plan')){markShownToday('plan');all.push(`今天还有 ${p.length} 项计划待完成，加油！`);} }
+      if(stats.subjects&&Object.keys(stats.subjects).length>0&&!wasShownToday('stale')) {
+        const records=getStudyRecords(), last={};
+        records.forEach(r=>{ if(!last[r.subject]||r.date>last[r.subject]) last[r.subject]=r.date; });
+        const stale=Object.entries(last).filter(([_,d])=>Math.floor((Date.now()-new Date(d).getTime())/86400000)>=3);
+        if(stale.length>0){markShownToday('stale');all.push(`${stale.map(([s])=>s).join('、')} 已经3天以上没学了！`);}
       }
-
-      // 今日未学习提醒：每天一次
-      if (stats.todayMin === 0 && stats.totalDays > 0 && !wasShownToday('no-study')) {
-        markShownToday('no-study');
-        allReminders.push('今天还没开始学习哦，先从擅长的科目开始吧！');
-      }
-
-      // 连续学习鼓励：每天一次
-      if (stats.streak >= 3 && !wasShownToday('streak')) {
-        markShownToday('streak');
-        allReminders.push(`你已经连续学习 ${stats.streak} 天了，太棒了！继续保持！`);
-      }
-
-      // 计划提醒：每次刷新检查（不锁，因为计划会变化）
-      if (todayPlan && todayPlan.items?.length) {
-        const pending = todayPlan.items.filter(i => i.status === 'pending');
-        if (pending.length > 0 && !wasShownToday('plan')) {
-          markShownToday('plan');
-          allReminders.push(`今天还有 ${pending.length} 项计划待完成，加油！`);
-        }
-      }
-
-      // 科目遗漏提醒：每天一次
-      if (stats.subjects && Object.keys(stats.subjects).length > 0 && !wasShownToday('stale')) {
-        const records = getStudyRecords();
-        const subjectLastDate = {};
-        records.forEach(r => {
-          if (!subjectLastDate[r.subject] || r.date > subjectLastDate[r.subject]) {
-            subjectLastDate[r.subject] = r.date;
-          }
-        });
-        const stale = Object.entries(subjectLastDate).filter(([_, d]) => {
-          const diff = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
-          return diff >= 3;
-        });
-        if (stale.length > 0) {
-          markShownToday('stale');
-          allReminders.push(`${stale.map(([s]) => s).join('、')} 已经3天以上没学了，今天安排复习一下吧`);
-        }
-      }
-
-      if (allReminders.length > 0) {
-        setTimeout(() => {
-          addMessage('📌 今日提醒：\n\n' + allReminders.join('\n'), 'assistant', true);
-        }, 1000);
-      }
+      if(all.length>0) setTimeout(()=>addMessage('📌 今日提醒：\n\n'+all.join('\n'),'assistant',true), 800);
     }
 
-    // 初始化
+    // ==================== 初始化 ====================
     restoreChatHistory();
     connect();
     renderPlanPanel();
+    renderHistoryPlan();
+    renderStatsPanel();
     checkReminders();
-
-    // 面板切换（互斥）
-    document.getElementById('planToggle').addEventListener('click', () => {
-      const panel = document.getElementById('planPanel');
-      const btn = document.getElementById('planToggle');
-      const statsPanel = document.getElementById('statsPanel');
-      const statsBtn = document.getElementById('statsToggle');
-      // 关闭统计面板
-      statsPanel.classList.remove('open');
-      statsBtn.classList.remove('active');
-      // 切换计划面板
-      panel.classList.toggle('open');
-      btn.classList.toggle('active');
-      if (panel.classList.contains('open')) renderPlanPanel();
-    });
-
-    document.getElementById('statsToggle').addEventListener('click', () => {
-      const panel = document.getElementById('statsPanel');
-      const btn = document.getElementById('statsToggle');
-      const planPanel = document.getElementById('planPanel');
-      const planBtn = document.getElementById('planToggle');
-      // 关闭计划面板
-      planPanel.classList.remove('open');
-      planBtn.classList.remove('active');
-      // 切换统计面板
-      panel.classList.toggle('open');
-      btn.classList.toggle('active');
-      if (panel.classList.contains('open')) renderStatsPanel();
-    });
   </script>
 </body>
 </html>

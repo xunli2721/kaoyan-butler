@@ -122,10 +122,17 @@ async function createPlan(
     const parsed = parsePlanJson(response, targetDate);
 
     if (parsed) {
+      const date = parsed.date || targetDate;
+      let text = `📋 ${date} 的复习计划已安排好：\n\n`;
+      parsed.items.forEach((item) => {
+        text += `⬜ ${item.time} ${item.subject} - ${item.task}\n`;
+      });
+      text += `\n${parsed.reply || '加油，按计划一步步来！'}`;
+
       return {
-        text: parsed.reply,
+        text,
         planData: {
-          date: parsed.date || targetDate,
+          date,
           items: parsed.items,
         },
       };
@@ -213,10 +220,18 @@ async function modifyPlan(
     const parsed = parsePlanJson(response, targetDate);
 
     if (parsed) {
+      const date = parsed.date || targetDate;
+      let text = `📋 计划已更新：\n\n`;
+      parsed.items.forEach((item) => {
+        const icon = item.status === 'done' ? '✅' : item.status === 'skipped' ? '⏭️' : '⬜';
+        text += `${icon} ${item.time} ${item.subject} - ${item.task}\n`;
+      });
+      text += `\n${parsed.reply || '计划已调整，加油！'}`;
+
       return {
-        text: parsed.reply,
+        text,
         planData: {
-          date: parsed.date || targetDate,
+          date,
           items: parsed.items,
         },
       };
