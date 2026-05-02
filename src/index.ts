@@ -11,6 +11,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createDeepSeekClient, DeepSeekClient } from './llm/deepseek.js';
 import { processIntent } from './llm/intent/index.js';
+import { handlePlanIntent } from './llm/plan.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,6 +38,8 @@ interface Message {
   timestamp?: number;
   intent?: string;
   memoryContext?: string;  // 前端传来的记忆上下文
+  plansJson?: string;      // 前端传来的现有计划数据
+  planData?: any;          // 返回给前端的结构化计划数据
 }
 
 wss.on('connection', (ws: WebSocket) => {
@@ -112,15 +115,34 @@ async function handleMessage(ws: WebSocket, message: Message, connectionId: stri
       // 第二层：AI生成回复（带意图上下文+记忆上下文）
       if (llmAvailable) {
         try {
-          console.log(`[LLM] 正在调用... 意图: ${result.intent?.subIntent}`);
-          const response = await deepSeekClient.simpleChat(message.text, message.memoryContext);
-          sendMessage(ws, {
-            type: 'chat',
-            text: response,
-            timestamp: Date.now(),
-            intent: result.intent?.subIntent,
-          });
-          console.log('[LLM] 响应已发送');
+          const subIntent = result.intent?.subIntent || '';
+
+          // 计划类意图：路由到计划处理器
+          if (subIntent.startsWith('plan_') && result.intent) {
+            console.log(`[计划] 处理意图: ${subIntent}`);
+            const planResult = await handlePlanIntent(
+              message.text, result.intent, deepSeekClient, message.plansJson
+            );
+            sendMessage(ws, {
+              type: 'chat',
+              text: planResult.text,
+              timestamp: Date.now(),
+              intent: subIntent,
+              planData: planResult.planData,
+            });
+            console.log('[计划] 响应已发送');
+          } else {
+            // 其他意图：通用LLM回复
+            console.log(`[LLM] 正在调用... 意图: ${subIntent}`);
+            const response = await deepSeekClient.simpleChat(message.text, message.memoryContext);
+            sendMessage(ws, {
+              type: 'chat',
+              text: response,
+              timestamp: Date.now(),
+              intent: subIntent,
+            });
+            console.log('[LLM] 响应已发送');
+          }
         } catch (error) {
           console.error('[LLM] 调用失败:', error);
           sendMessage(ws, {
