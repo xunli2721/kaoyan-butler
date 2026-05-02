@@ -506,6 +506,20 @@
         });
       }
 
+      // 提取考试日期：12月21号考试 / 考试日期是2026-12-21
+      const examMatch = m.match(/(\d{1,2})月(\d{1,2})[号日].*考试|考试.*(\d{4})-(\d{1,2})-(\d{1,2})/);
+      if (examMatch) {
+        const year = examMatch[3] ? parseInt(examMatch[3]) : new Date().getFullYear();
+        const month = examMatch[3] ? parseInt(examMatch[4]) : parseInt(examMatch[1]);
+        const day = examMatch[3] ? parseInt(examMatch[5]) : parseInt(examMatch[2]);
+        const examDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        saveProfile({ examDate });
+      }
+
+      // 提取备考阶段：基础阶段 / 强化阶段 / 冲刺阶段
+      const stageMatch = m.match(/(基础|强化|冲刺|考前)阶段/);
+      if (stageMatch) saveProfile({ stage: stageMatch[1] + '阶段' });
+
       // 提取薄弱点：xxx是弱项 / xxx薄弱
       const weakMatch = m.match(/([一-龥]{2,6})是[我的]?弱[项点科]|([一-龥]{2,6})薄弱/);
       if (weakMatch) {
@@ -623,10 +637,88 @@
       if (e.key === 'Enter') sendMessage();
     });
 
+    // ==================== 主动提醒系统 ====================
+    // 每种提醒独立追踪，互不阻塞。格式: kaoyan-reminder-{type}-{date}
+    function wasShownToday(key) {
+      return localStorage.getItem(`kaoyan-reminder-${key}-${new Date().toISOString().split('T')[0]}`) === '1';
+    }
+    function markShownToday(key) {
+      localStorage.setItem(`kaoyan-reminder-${key}-${new Date().toISOString().split('T')[0]}`, '1');
+    }
+
+    function checkReminders() {
+      const profile = getProfile();
+      const stats = getStudyStats();
+      const todayPlan = getTodayPlan();
+      const allReminders = [];
+
+      // 新用户引导：只显示一次（永久）
+      if (!profile && stats.totalDays === 0 && !localStorage.getItem('kaoyan-guide-shown')) {
+        localStorage.setItem('kaoyan-guide-shown', '1');
+        allReminders.push('💡 小贴士：你可以告诉我以下信息，我会记住并帮你更好地备考：\n\n• 你的名字（"我叫小明"）\n• 目标院校（"考浙大计算机"）\n• 考试日期（"12月21号考试"）\n• 薄弱科目（"高数是弱项"）\n\n然后试试说"帮我安排今天的复习"或"什么是泰勒展开？"');
+      }
+
+      // 考试倒计时：每天一次
+      if (profile?.examDate && !wasShownToday('exam')) {
+        const days = Math.ceil((new Date(profile.examDate) - Date.now()) / 86400000);
+        if (days > 0 && days <= 365) {
+          markShownToday('exam');
+          allReminders.push(`距离考研还有 ${days} 天，${days <= 30 ? '最后冲刺！' : days <= 90 ? '进入冲刺阶段了，加油！' : '坚持就是胜利！'}`);
+        }
+      }
+
+      // 今日未学习提醒：每天一次
+      if (stats.todayMin === 0 && stats.totalDays > 0 && !wasShownToday('no-study')) {
+        markShownToday('no-study');
+        allReminders.push('今天还没开始学习哦，先从擅长的科目开始吧！');
+      }
+
+      // 连续学习鼓励：每天一次
+      if (stats.streak >= 3 && !wasShownToday('streak')) {
+        markShownToday('streak');
+        allReminders.push(`你已经连续学习 ${stats.streak} 天了，太棒了！继续保持！`);
+      }
+
+      // 计划提醒：每次刷新检查（不锁，因为计划会变化）
+      if (todayPlan && todayPlan.items?.length) {
+        const pending = todayPlan.items.filter(i => i.status === 'pending');
+        if (pending.length > 0 && !wasShownToday('plan')) {
+          markShownToday('plan');
+          allReminders.push(`今天还有 ${pending.length} 项计划待完成，加油！`);
+        }
+      }
+
+      // 科目遗漏提醒：每天一次
+      if (stats.subjects && Object.keys(stats.subjects).length > 0 && !wasShownToday('stale')) {
+        const records = getStudyRecords();
+        const subjectLastDate = {};
+        records.forEach(r => {
+          if (!subjectLastDate[r.subject] || r.date > subjectLastDate[r.subject]) {
+            subjectLastDate[r.subject] = r.date;
+          }
+        });
+        const stale = Object.entries(subjectLastDate).filter(([_, d]) => {
+          const diff = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+          return diff >= 3;
+        });
+        if (stale.length > 0) {
+          markShownToday('stale');
+          allReminders.push(`${stale.map(([s]) => s).join('、')} 已经3天以上没学了，今天安排复习一下吧`);
+        }
+      }
+
+      if (allReminders.length > 0) {
+        setTimeout(() => {
+          addMessage('📌 今日提醒：\n\n' + allReminders.join('\n'), 'assistant', true);
+        }, 1000);
+      }
+    }
+
     // 初始化
     restoreChatHistory();
     connect();
     renderPlanPanel();
+    checkReminders();
 
     // 计划面板切换
     document.getElementById('planToggle').addEventListener('click', () => {

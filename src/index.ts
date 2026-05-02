@@ -13,6 +13,7 @@ import { createDeepSeekClient, DeepSeekClient } from './llm/deepseek.js';
 import { processIntent } from './llm/intent/index.js';
 import { handlePlanIntent } from './llm/plan.js';
 import { handleQaIntent } from './llm/qa.js';
+import { handleReviewIntent } from './llm/review.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -145,6 +146,19 @@ async function handleMessage(ws: WebSocket, message: Message, connectionId: stri
               intent: subIntent,
             });
             console.log('[QA] 响应已发送');
+          } else if (subIntent.startsWith('review_') && result.intent) {
+            // 复习提醒：路由到专用review处理器
+            console.log(`[Review] 处理意图: ${subIntent}`);
+            const reviewResult = await handleReviewIntent(
+              message.text, result.intent, deepSeekClient, message.memoryContext
+            );
+            sendMessage(ws, {
+              type: 'chat',
+              text: reviewResult.text,
+              timestamp: Date.now(),
+              intent: subIntent,
+            });
+            console.log('[Review] 响应已发送');
           } else {
             // 其他意图：通用LLM回复
             console.log(`[LLM] 正在调用... 意图: ${subIntent}`);
