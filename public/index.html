@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>考研小管家 - AI考研备考助手</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 800px;
+      height: 90vh;
+      max-height: 700px;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .header-avatar {
+      width: 50px;
+      height: 50px;
+      background: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .header-info h1 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .header-info p {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    .status {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ff6b6b;
+    }
+
+    .status-dot.connected {
+      background: #51cf66;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      background: #f8f9fa;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 18px;
+      font-size: 15px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      background: white;
+      color: #333;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .input-area {
+      padding: 15px 20px;
+      background: white;
+      border-top: 1px solid #e9ecef;
+      display: flex;
+      gap: 10px;
+    }
+
+    #messageInput {
+      flex: 1;
+      border: none;
+      background: #f1f3f4;
+      padding: 12px 16px;
+      border-radius: 25px;
+      font-size: 15px;
+      outline: none;
+    }
+
+    #messageInput:focus {
+      background: #e8eaed;
+    }
+
+    .send-btn {
+      width: 45px;
+      height: 45px;
+      border: none;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 18px;
+      transition: transform 0.2s;
+    }
+
+    .send-btn:hover {
+      transform: scale(1.05);
+    }
+
+    .send-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .typing-indicator {
+      display: none;
+      align-self: flex-start;
+      padding: 12px 16px;
+      background: white;
+      border-radius: 18px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .typing-indicator span {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #999;
+      border-radius: 50%;
+      margin: 0 2px;
+      animation: typing 1.4s infinite;
+    }
+
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes typing {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-5px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-avatar">📚</div>
+      <div class="header-info">
+        <h1>考研小管家</h1>
+        <p>你的AI考研备考助手</p>
+      </div>
+      <div class="status">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">连接中...</span>
+      </div>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="typing-indicator" id="typingIndicator">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <input type="text" id="messageInput" placeholder="输入消息..." autocomplete="off">
+      <button class="send-btn" id="sendBtn" disabled>➤</button>
+    </div>
+  </div>
+
+  <script>
+    // ==================== 设备身份管理 ====================
+    const DEVICE_ID_KEY = 'kaoyan-butler-device-id';
+
+    function getOrCreateDeviceId() {
+      let deviceId = localStorage.getItem(DEVICE_ID_KEY);
+      if (!deviceId) {
+        deviceId = 'device-' + Date.now().toString(36) + '-' +
+                   Math.random().toString(36).substr(2, 9);
+        localStorage.setItem(DEVICE_ID_KEY, deviceId);
+      }
+      return deviceId;
+    }
+
+    // ==================== 对话历史管理 ====================
+    const CHAT_HISTORY_KEY = 'kaoyan-butler-chat-history';
+
+    function loadChatHistory() {
+      try {
+        const history = localStorage.getItem(CHAT_HISTORY_KEY);
+        return history ? JSON.parse(history) : [];
+      } catch { return []; }
+    }
+
+    function saveChatHistory(msgs) {
+      try { localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(msgs)); }
+      catch (e) { console.error('保存对话历史失败:', e); }
+    }
+
+    // ==================== 考研档案管理 ====================
+    const PROFILE_KEY = 'kaoyan-profile';
+    const STUDY_RECORDS_KEY = 'kaoyan-study-records';
+    const PLANS_KEY = 'kaoyan-plans';
+
+    function getProfile() {
+      try {
+        const d = localStorage.getItem(PROFILE_KEY);
+        return d ? JSON.parse(d) : null;
+      } catch { return null; }
+    }
+
+    function saveProfile(profile) {
+      const existing = getProfile();
+      const merged = { subjects: [], createdAt: Date.now(), ...existing, ...profile, updatedAt: Date.now() };
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(merged));
+      return merged;
+    }
+
+    function getStudyRecords() {
+      try {
+        const d = localStorage.getItem(STUDY_RECORDS_KEY);
+        return d ? JSON.parse(d) : [];
+      } catch { return []; }
+    }
+
+    function addStudyRecord(record) {
+      const records = getStudyRecords();
+      records.push({ ...record, createdAt: Date.now() });
+      localStorage.setItem(STUDY_RECORDS_KEY, JSON.stringify(records));
+      return records;
+    }
+
+    function getStudyStats() {
+      const records = getStudyRecords();
+      const today = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const dayOfWeek = now.getDay() || 7;
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - dayOfWeek + 1);
+      const weekStartStr = weekStart.toISOString().split('T')[0];
+
+      let todayMin = 0, weekMin = 0, totalDays = 0;
+      const subjects = {};
+      const dates = new Set();
+
+      for (const r of records) {
+        dates.add(r.date);
+        if (r.date === today) todayMin += r.duration;
+        if (r.date >= weekStartStr) weekMin += r.duration;
+        subjects[r.subject] = (subjects[r.subject] || 0) + r.duration;
+      }
+      totalDays = dates.size;
+
+      // 连续天数
+      let streak = 0;
+      const sorted = Array.from(dates).sort().reverse();
+      let check = new Date(today);
+      if (!dates.has(today)) check.setDate(check.getDate() - 1);
+      for (let i = 0; i < 365; i++) {
+        const d = check.toISOString().split('T')[0];
+        if (dates.has(d)) { streak++; check.setDate(check.getDate() - 1); }
+        else break;
+      }
+
+      return { todayMin, weekMin, totalDays, streak, subjects };
+    }
+
+    // ==================== 生成记忆上下文（发送给LLM） ====================
+    function getMemoryContext() {
+      const profile = getProfile();
+      const stats = getStudyStats();
+      let ctx = '';
+
+      if (profile) {
+        ctx += '【用户档案】\n';
+        if (profile.name) ctx += `姓名: ${profile.name}\n`;
+        if (profile.targetSchool) ctx += `目标院校: ${profile.targetSchool}\n`;
+        if (profile.targetMajor) ctx += `目标专业: ${profile.targetMajor}\n`;
+        if (profile.examDate) {
+          const days = Math.ceil((new Date(profile.examDate) - Date.now()) / 86400000);
+          ctx += `考试日期: ${profile.examDate} (还有${days}天)\n`;
+        }
+        if (profile.stage) ctx += `备考阶段: ${profile.stage}\n`;
+        if (profile.weakPoints?.length) ctx += `薄弱点: ${profile.weakPoints.join('、')}\n`;
+        ctx += '\n';
+      }
+
+      if (stats.totalDays > 0) {
+        ctx += '【学习统计】\n';
+        ctx += `累计${stats.totalDays}天，连续${stats.streak}天\n`;
+        ctx += `今日${stats.todayMin}分钟，本周${stats.weekMin}分钟\n`;
+        const dist = Object.entries(stats.subjects).map(([k,v]) => `${k}${Math.round(v/60)}h`).join('、');
+        if (dist) ctx += `各科: ${dist}\n`;
+        ctx += '\n';
+      }
+
+      return ctx;
+    }
+
+    // ==================== 从消息中提取并保存信息 ====================
+    function extractAndSave(message) {
+      const m = message;
+
+      // 提取姓名：我叫xxx / 我是xxx
+      const nameMatch = m.match(/我叫([一-龥]{2,4})|我是([一-龥]{2,4})/);
+      if (nameMatch) saveProfile({ name: nameMatch[1] || nameMatch[2] });
+
+      // 提取目标院校：考xxx / 目标xxx / 报考xxx
+      const schoolMatch = m.match(/考([一-龥]{2,10}大学|[一-龥]{2,10}学院)|目标[是校]([一-龥]{2,10})|报考([一-龥]{2,10})/);
+      if (schoolMatch) saveProfile({ targetSchool: schoolMatch[1] || schoolMatch[2] || schoolMatch[3] });
+
+      // 提取学习记录：学了X小时xxx
+      const studyMatch = m.match(/学了(\d+)(小时|h|分钟|min)([一-龥\w]+)/i);
+      if (studyMatch) {
+        const dur = studyMatch[2].includes('分') ? parseInt(studyMatch[1]) : parseInt(studyMatch[1]) * 60;
+        addStudyRecord({
+          date: new Date().toISOString().split('T')[0],
+          subject: studyMatch[3].trim(),
+          duration: dur,
+          content: m,
+          completed: true,
+        });
+      }
+
+      // 提取薄弱点：xxx是弱项 / xxx薄弱
+      const weakMatch = m.match(/([一-龥]{2,6})是[我的]?弱[项点科]|([一-龥]{2,6})薄弱/);
+      if (weakMatch) {
+        const weak = weakMatch[1] || weakMatch[2];
+        const profile = getProfile() || { subjects: [] };
+        const existing = profile.weakPoints || [];
+        if (!existing.includes(weak)) {
+          saveProfile({ weakPoints: [...existing, weak] });
+        }
+      }
+    }
+
+    // ==================== WebSocket连接 ====================
+    const messagesContainer = document.getElementById('messages');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const typingIndicator = document.getElementById('typingIndicator');
+
+    let ws = null;
+    let deviceId = getOrCreateDeviceId();
+    let chatHistory = loadChatHistory();
+
+    function restoreChatHistory() {
+      chatHistory.forEach(msg => addMessage(msg.text, msg.type, false));
+      if (chatHistory.length === 0) {
+        const profile = getProfile();
+        const greeting = profile?.name
+          ? `你好${profile.name}！欢迎回来！我是考研小管家，你的AI考研备考助手。今天继续加油吧！`
+          : '你好！我是考研小管家，你的AI考研备考助手。你可以先告诉我你的名字和目标院校，我会记住的！\n\n我可以帮你：\n1. 记录每日学习\n2. 制定复习计划\n3. 解答考研问题\n4. 管理备考进度';
+        addMessage(greeting, 'assistant', true);
+      }
+    }
+
+    function connect() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${window.location.host}`);
+
+      ws.onopen = () => {
+        statusDot.classList.add('connected');
+        statusText.textContent = '已连接';
+        sendBtn.disabled = false;
+      };
+
+      ws.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        if (message.type === 'chat' && message.text) {
+          hideTyping();
+          addMessage(message.text, 'assistant', true);
+        }
+      };
+
+      ws.onclose = () => {
+        statusDot.classList.remove('connected');
+        statusText.textContent = '未连接';
+        sendBtn.disabled = true;
+        setTimeout(connect, 5000);
+      };
+    }
+
+    function addMessage(text, type, save = true) {
+      const div = document.createElement('div');
+      div.className = `message ${type}`;
+      div.textContent = text;
+      messagesContainer.insertBefore(div, typingIndicator);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+      if (save) {
+        chatHistory.push({ text, type, timestamp: Date.now() });
+        saveChatHistory(chatHistory);
+      }
+    }
+
+    function showTyping() {
+      typingIndicator.style.display = 'block';
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function hideTyping() {
+      typingIndicator.style.display = 'none';
+    }
+
+    function sendMessage() {
+      const text = messageInput.value.trim();
+      if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+      addMessage(text, 'user', true);
+      showTyping();
+
+      // 从消息中提取信息并保存
+      extractAndSave(text);
+
+      // 发送消息时带上记忆上下文
+      ws.send(JSON.stringify({
+        type: 'chat',
+        text: text,
+        deviceId: deviceId,
+        timestamp: Date.now(),
+        memoryContext: getMemoryContext(),
+      }));
+
+      messageInput.value = '';
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    // 初始化
+    restoreChatHistory();
+    connect();
+  </script>
+</body>
+</html>
