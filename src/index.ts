@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url';
 import { createDeepSeekClient, DeepSeekClient } from './llm/deepseek.js';
 import { processIntent } from './llm/intent/index.js';
 import { handlePlanIntent } from './llm/plan.js';
+import { handleQaIntent } from './llm/qa.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -131,6 +132,19 @@ async function handleMessage(ws: WebSocket, message: Message, connectionId: stri
               planData: planResult.planData,
             });
             console.log('[计划] 响应已发送');
+          } else if (subIntent.startsWith('qa_') && result.intent) {
+            // 知识问答：路由到专用QA处理器
+            console.log(`[QA] 处理意图: ${subIntent}`);
+            const qaResult = await handleQaIntent(
+              message.text, result.intent, deepSeekClient, message.memoryContext
+            );
+            sendMessage(ws, {
+              type: 'chat',
+              text: qaResult.text,
+              timestamp: Date.now(),
+              intent: subIntent,
+            });
+            console.log('[QA] 响应已发送');
           } else {
             // 其他意图：通用LLM回复
             console.log(`[LLM] 正在调用... 意图: ${subIntent}`);
