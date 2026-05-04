@@ -516,9 +516,7 @@
         </div>
         <div class="quick-actions">
           <span class="quick-chip" onclick="quickSend('帮我安排今天的复习')">📋 今日计划</span>
-          <span class="quick-chip" onclick="quickSend('今天学了2小时高数')">📝 记录学习</span>
-          <span class="quick-chip" onclick="quickSend('什么是泰勒展开？')">❓ 知识问答</span>
-          <span class="quick-chip" onclick="quickSend('我高数哪些章节薄弱？')">🔍 薄弱分析</span>
+          <span class="quick-chip" onclick="quickSend('根据我们之前的聊天记录和我的学习数据，帮我分析一下各科的薄弱点')">🔍 薄弱分析</span>
         </div>
         <div class="input-area">
           <input type="text" id="messageInput" placeholder="输入消息，或点击上方快捷操作..." autocomplete="off">
@@ -925,7 +923,7 @@
         if(profile.targetMajor) ctx+=`目标专业: ${profile.targetMajor}\n`;
         if(profile.examDate) { const d=Math.ceil((new Date(profile.examDate)-Date.now())/86400000); ctx+=`考试日期: ${profile.examDate} (还有${d}天)\n`; }
         if(profile.stage) ctx+=`备考阶段: ${profile.stage}\n`;
-        if(profile.weakPoints?.length) ctx+=`薄弱点: ${profile.weakPoints.join('、')}\n`;
+        if(profile.weakPoints?.length) { const wp=Array.isArray(profile.weakPoints)?profile.weakPoints:[profile.weakPoints]; ctx+=`薄弱点: ${wp.join('、')}\n`; }
         ctx+='\n';
       }
       if (stats.totalDays>0) {
@@ -951,14 +949,26 @@
       if(nameMatch) saveProfile({name:nameMatch[1]||nameMatch[2]});
       const schoolMatch=m.match(/考([一-龥]{2,10}大学|[一-龥]{2,10}学院)|目标[是校]([一-龥]{2,10})|报考([一-龥]{2,10})/);
       if(schoolMatch) saveProfile({targetSchool:schoolMatch[1]||schoolMatch[2]||schoolMatch[3]});
-      const studyMatch=m.match(/学了(\d+)(小时|h|分钟|min)([一-龥\w]+)/i);
-      if(studyMatch) { const dur=studyMatch[2].includes('分')?parseInt(studyMatch[1]):parseInt(studyMatch[1])*60; addStudyRecord({date:new Date().toISOString().split('T')[0],subject:studyMatch[3].trim(),duration:dur,content:m,completed:true}); }
+      const cnNum={'一':1,'两':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10};
+      const nPat='(?:一个半|[\\d.]*半|[\\d.一二两三四五六七八九十]+)';
+      const uPat='(?:小时|h|分钟|min)';
+      const segs=m.split(/[,，;；。！!？?]+/);
+      for(const seg of segs) {
+        const s=seg.trim(); if(!s) continue;
+        const p1s=s.match(/([一-鿿]{2,6})(?=学[习了]?|复习|背|看了|做了|练了)(?:学[习了]?|复习|背|看了|做了|练了).*?((?:一个半|[\d.]*半|[\d.一二两三四五六七八九十]+))(?:小时|h|分钟|min)/);
+        const temporal=/^(今[天晚]|昨[天晚]|明天|后天|前天|早上|上午|下午|今天我|昨天我)/;
+        const p1=(p1s&&!temporal.test(p1s[1]))?[0,p1s[2],p1s[1]]:null;
+        const p2=s.match(/(?:学[习了]?|复习|背|看了|做了|练了).*?((?:一个半|[\d.]*半|[\d.一二两三四五六七八九十]+))(?:小时|h|分钟|min).*?([一-鿿]{2,6})/);
+        const p3=s.match(/((?:一个半|[\d.]*半|[\d.一二两三四五六七八九十]+))(?:小时|h|分钟|min).*?([一-鿿]{2,6})/);
+        const m2=p1||p2||p3;
+        if(m2){const numStr=m2[1],subj=m2[2];const isMin=s.includes('分钟')||s.includes('min');let mins=0;if(numStr==='一个半'){mins=90;}else if(numStr==='半'){mins=30;}else if(typeof numStr==='string'&&numStr.includes('半')){const base=cnNum[numStr.replace('半','')]||parseFloat(numStr);mins=base*60+30;}else{const n=cnNum[numStr]||parseFloat(numStr);mins=isMin?n:n*60;}if(subj&&mins>0){addStudyRecord({date:new Date().toISOString().split('T')[0],subject:subj,duration:mins,content:s,completed:true});console.log('[记忆] 学习记录已保存:',subj,mins+'分钟');}}
+      }
       const examMatch=m.match(/(\d{1,2})月(\d{1,2})[号日].*考试|考试.*(\d{4})-(\d{1,2})-(\d{1,2})/);
       if(examMatch) { const y=examMatch[3]?parseInt(examMatch[3]):new Date().getFullYear(); const mo=examMatch[3]?parseInt(examMatch[4]):parseInt(examMatch[1]); const d=examMatch[3]?parseInt(examMatch[5]):parseInt(examMatch[2]); saveProfile({examDate:`${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`}); }
       const stageMatch=m.match(/(基础|强化|冲刺|考前)阶段/);
       if(stageMatch) saveProfile({stage:stageMatch[1]+'阶段'});
-      const weakMatch=m.match(/([一-龥]{2,6})是[我的]?弱[项点科]|([一-龥]{2,6})薄弱/);
-      if(weakMatch) { const w=weakMatch[1]||weakMatch[2]; const p=getProfile()||{subjects:[]}; const ex=p.weakPoints||[]; if(!ex.includes(w)) saveProfile({weakPoints:[...ex,w]}); }
+      const weakMatch=m.match(/([一-鿿]{2,6})是我的?弱[项点科]|([一-鿿]{2,6})薄弱/);
+      if(weakMatch) { const w=weakMatch[1]||weakMatch[2]; const p=getProfile()||{subjects:[]}; const ex=Array.isArray(p.weakPoints)?p.weakPoints:[]; if(!ex.includes(w)) saveProfile({weakPoints:[...ex,w]}); }
     }
 
     // ==================== WebSocket ====================
@@ -1014,11 +1024,14 @@
       ws = new WebSocket(`${protocol}//${window.location.host}`);
       ws.onopen = () => { statusDot.classList.add('connected'); statusText.textContent='已连接'; sendBtn.disabled=false; };
       ws.onmessage = (event) => {
-        const message = JSON.parse(event.data);
-        if (message.type==='chat'&&message.text) {
-          hideTyping(); addMessage(message.text, 'assistant', true);
-          if (message.planData?.items) { savePlan(message.planData); renderPlanPanel(); renderHistoryPlan(); }
-        }
+        try {
+          const message = JSON.parse(event.data);
+          console.log('[WS] 收到:', message.type, (message.text||'').substring(0,60));
+          if (message.type==='chat'&&message.text) {
+            hideTyping(); addMessage(message.text, 'assistant', true);
+            try { if (message.planData?.items) { savePlan(message.planData); renderPlanPanel(); renderHistoryPlan(); } } catch(e) { console.error('[Plan] save error:', e); }
+          }
+        } catch(e) { console.error('[WS] message error:', e); hideTyping(); }
       };
       ws.onclose = () => { statusDot.classList.remove('connected'); statusText.textContent='未连接'; sendBtn.disabled=true; setTimeout(connect, 5000); };
     }
@@ -1051,6 +1064,7 @@
       if (save) { chatHistory.push({text,type,timestamp:Date.now()}); saveChatHistory(chatHistory); }
     }
 
+    let typingTimer = null;
     function showTyping() {
       typingIndicator.style.display='flex';
       if (!typingIndicator.querySelector('.thinking-text')) {
@@ -1059,13 +1073,30 @@
         typingIndicator.insertBefore(t, typingIndicator.firstChild);
       }
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => {
+        hideTyping();
+        addMessage('AI响应超时，请稍后再试。', 'assistant', true);
+      }, 35000);
     }
-    function hideTyping() { typingIndicator.style.display='none'; }
+    function hideTyping() { typingIndicator.style.display='none'; clearTimeout(typingTimer); }
 
     function sendMessage() {
       const text = messageInput.value.trim();
-      if (!text||!ws||ws.readyState!==WebSocket.OPEN) return;
-      addMessage(text, 'user', true); showTyping(); extractAndSave(text);
+      if (!text) return;
+      if (!ws||ws.readyState!==WebSocket.OPEN) {
+        addMessage('连接已断开，正在重连...', 'assistant', false);
+        connect(); return;
+      }
+      addMessage(text, 'user', true); showTyping();
+      try {
+        const before = getStudyRecords().length;
+        extractAndSave(text);
+        const after = getStudyRecords().length;
+        console.log(`[sendMessage] 学习记录: ${before} → ${after} 条`);
+        renderStatsPanel();
+        console.log('[sendMessage] 统计面板已刷新');
+      } catch(e) { console.error('[sendMessage] extractAndSave error:', e); }
       ws.send(JSON.stringify({ type:'chat', text, deviceId, timestamp:Date.now(), memoryContext:getMemoryContext(), plansJson:getPlansJson() }));
       messageInput.value=''; messageInput.focus();
     }
@@ -1109,7 +1140,7 @@
 
     // ==================== 模拟数据（调试用） ====================
     window.generateMockData = function() {
-      const profile = { name:'小明', targetSchool:'浙江大学', targetMajor:'计算机科学与技术', examDate:'2026-12-20', stage:'基础', weakPoints:'高数', createdAt: new Date('2026-04-26').getTime() };
+      const profile = { name:'小明', targetSchool:'浙江大学', targetMajor:'计算机科学与技术', examDate:'2026-12-20', stage:'基础', weakPoints:['高数'], createdAt: new Date('2026-04-26').getTime() };
       localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
       const studyRecords = [
         { date:'2026-04-26', subject:'高数', duration:150, content:'复习极限与连续，做课后习题20道', completed:true },
@@ -1132,6 +1163,12 @@
         { date:'2026-05-01', subject:'英语', duration:90, content:'背单词 + 阅读理解2篇', completed:true },
         { date:'2026-05-02', subject:'高数', duration:90, content:'微分方程入门 + 基本概念', completed:true },
         { date:'2026-05-02', subject:'英语', duration:60, content:'背单词 + 翻译练习', completed:true },
+        { date:'2026-05-03', subject:'高数', duration:120, content:'微分方程解法练习', completed:true },
+        { date:'2026-05-03', subject:'英语', duration:90, content:'阅读理解2篇 + 新题型', completed:true },
+        { date:'2026-05-03', subject:'政治', duration:60, content:'毛中特第4章', completed:true },
+        { date:'2026-05-04', subject:'专业课', duration:150, content:'数据结构：排序算法（快排、归并）', completed:true },
+        { date:'2026-05-04', subject:'英语', duration:120, content:'真题阅读2015年Text1-2', completed:true },
+        { date:'2026-05-04', subject:'高数', duration:90, content:'二重积分基础', completed:true },
       ].map((r,i) => ({ ...r, createdAt: new Date(r.date+'T0'+(8+i%12)+':00:00').getTime() }));
       localStorage.setItem(STUDY_RECORDS_KEY, JSON.stringify(studyRecords));
       const plans = [
@@ -1175,9 +1212,28 @@
         { date:'2026-05-02', items:[
           { time:'08:30-10:00', subject:'高数', task:'微分方程入门', status:'done' },
           { time:'10:30-11:30', subject:'英语', task:'背单词 + 翻译练习', status:'done' },
-          { time:'14:00-15:30', subject:'专业课', task:'排序算法复习', status:'pending' },
-          { time:'16:00-17:00', subject:'政治', task:'毛中特第3章选择题', status:'pending' },
-          { time:'19:00-20:00', subject:'高数', task:'今日错题整理', status:'pending' }
+          { time:'14:00-15:30', subject:'专业课', task:'排序算法复习', status:'done' },
+          { time:'16:00-17:00', subject:'政治', task:'毛中特第3章选择题', status:'done' },
+          { time:'19:00-20:00', subject:'高数', task:'今日错题整理', status:'skipped' }
+        ]},
+        { date:'2026-05-03', items:[
+          { time:'08:30-10:30', subject:'高数', task:'微分方程解法练习', status:'done' },
+          { time:'11:00-12:30', subject:'英语', task:'阅读理解2篇 + 新题型', status:'done' },
+          { time:'14:00-15:00', subject:'政治', task:'毛中特第4章', status:'done' },
+          { time:'16:00-17:30', subject:'专业课', task:'查找算法复习', status:'skipped' }
+        ]},
+        { date:'2026-05-04', items:[
+          { time:'08:30-11:00', subject:'专业课', task:'排序算法（快排、归并）', status:'done' },
+          { time:'14:00-16:00', subject:'英语', task:'真题阅读2015年', status:'done' },
+          { time:'16:30-18:00', subject:'高数', task:'二重积分基础', status:'done' },
+          { time:'19:00-20:00', subject:'政治', task:'毛中特选择题', status:'skipped' }
+        ]},
+        { date:'2026-05-05', items:[
+          { time:'08:30-10:30', subject:'高数', task:'二重积分计算方法', status:'pending' },
+          { time:'11:00-12:00', subject:'英语', task:'背单词 + 翻译练习', status:'pending' },
+          { time:'14:00-15:30', subject:'专业课', task:'查找算法（二分、哈希）', status:'pending' },
+          { time:'16:00-17:00', subject:'政治', task:'毛中特第5章', status:'pending' },
+          { time:'19:00-20:30', subject:'高数', task:'今日错题整理', status:'pending' }
         ]}
       ];
       localStorage.setItem(PLANS_KEY, JSON.stringify(plans));

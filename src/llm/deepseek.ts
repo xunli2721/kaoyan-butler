@@ -84,32 +84,40 @@ export class DeepSeekClient implements LLMClient {
   private async callDeepSeekAPI(prompt: string): Promise<string> {
     const url = 'https://api.deepseek.com/v1/chat/completions';
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: this.config.model || 'deepseek-chat',
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.7,
-        max_tokens: 2048,
-      }),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API请求失败: ${response.status} - ${errorText}`);
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.config.model || 'deepseek-chat',
+          messages: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          temperature: 0.7,
+          max_tokens: 2048,
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API请求失败: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json() as any;
+      return data.choices[0].message.content;
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const data = await response.json() as any;
-    return data.choices[0].message.content;
   }
 }
 
