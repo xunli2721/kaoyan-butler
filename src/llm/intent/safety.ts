@@ -100,10 +100,3 @@ export function safetyCheck(message: string): SafetyResult {
     message: '',
   };
 }
-
-/**
- * 获取所有安全规则（用于展示/调试）
- */
-export function getSafetyRules(): SafetyRule[] {
-  return SAFETY_RULES;
-}

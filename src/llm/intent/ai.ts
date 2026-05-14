@@ -35,6 +35,9 @@ const INTENT_PROMPT = `你是"考研小管家"的意图识别模块。请分析�
 | review | review_query | 查薄弱点 | "我高数哪些章节薄弱？" |
 | review | review_schedule | 安排复习 | "根据遗忘曲线安排政治复习" |
 | review | review_stage | 阶段咨询 | "现在该进入强化阶段了吗？" |
+| review | review_mistake | 记录错题 | "记录一道高数错题"、"我这道积分题做错了，答案是x³+C" |
+| review | review_mistake_query | 查看错题 | "看看我的错题"、"高数有哪些错题" |
+| review | review_mistake_review | 错题分析 | "分析我的错题模式"、"错题有什么规律" |
 | chat | chat_greeting | 问候 | "你好"（较长的问候） |
 | chat | chat_chat | 闲聊/倾诉 | "考研好累啊"、"今天状态不错" |
 | chat | chat_comfort | 焦虑安抚 | "感觉来不及了"、"考不上怎么办" |
@@ -53,7 +56,11 @@ const INTENT_PROMPT = `你是"考研小管家"的意图识别模块。请分析�
     "duration": 时长数字（如有）,
     "durationUnit": "小时/分钟（如有）",
     "content": "学习内容（如有）",
-    "topic": "知识点（如有）"
+    "topic": "知识点（如有）",
+    "question": "错题内容（仅review_mistake）",
+    "userAnswer": "用户的错误答案（仅review_mistake）",
+    "correctAnswer": "正确答案（仅review_mistake）",
+    "errorType": "错误类型：概念混淆/计算失误/方法错误/审题不清（仅review_mistake）"
   }
 }
 

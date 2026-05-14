@@ -244,6 +244,44 @@
       0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; }
     }
 
+    /* Rendered content (KaTeX + Markdown) */
+    .message.assistant .katex { font-size: 1.05em; }
+    .message.assistant .katex-display { margin: 8px 0; overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+    .message.assistant code { background: var(--surface-alt); padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+    .message.assistant pre { background: var(--surface-alt); padding: 10px; border-radius: 8px; overflow-x: auto; margin: 6px 0; }
+    .message.assistant pre code { background: none; padding: 0; }
+    .message.assistant p { margin: 4px 0; }
+    .message.assistant ul, .message.assistant ol { padding-left: 20px; margin: 4px 0; }
+    .formula-btn { width: 36px; height: 36px; border: 1px solid var(--border,#ddd); border-radius: 8px; background: var(--surface-alt,#f0ebe0); color: var(--text-secondary,#8a7e6d); font-size: 13px; font-weight: 700; font-style: italic; cursor: pointer; flex-shrink: 0; transition: all 0.15s; }
+    .formula-btn:hover { background: var(--accent-light,#e8f0fe); color: var(--accent,#4a7dff); border-color: var(--accent,#4a7dff); }
+    .image-preview-bar { display: flex; align-items: center; gap: 8px; padding: 6px 14px; background: var(--surface-alt,#f0ebe0); border-top: 1px solid var(--border,#eee); }
+    .image-preview-bar img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border,#ddd); }
+    .formula-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center; }
+    .formula-modal-overlay.open { display: flex; }
+    .formula-modal { background: var(--surface,#fffcf7); border-radius: 14px; width: 90%; max-width: 640px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 12px 40px rgba(0,0,0,0.15); overflow: hidden; }
+    .formula-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border,#eee); }
+    .formula-modal-header span { font-size: 15px; font-weight: 600; }
+    .formula-modal-close { border: none; background: none; font-size: 20px; cursor: pointer; color: var(--text-secondary,#888); padding: 4px; }
+    .formula-modal-body { display: flex; flex: 1; min-height: 0; }
+    .formula-modal-left { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--border,#eee); padding: 14px; }
+    .formula-modal-left label { font-size: 12px; color: var(--text-secondary,#888); margin-bottom: 6px; }
+    .formula-modal-left textarea { flex: 1; min-height: 120px; padding: 10px; border: 1px solid var(--border,#ddd); border-radius: 8px; font-size: 14px; font-family: 'Courier New', monospace; resize: none; outline: none; }
+    .formula-modal-left textarea:focus { border-color: var(--accent,#4a7dff); }
+    .formula-modal-hint { font-size: 11px; color: var(--text-tertiary,#aaa); margin-top: 6px; line-height: 1.5; }
+    .formula-modal-right { flex: 1; display: flex; flex-direction: column; padding: 14px; }
+    .formula-modal-right label { font-size: 12px; color: var(--text-secondary,#888); margin-bottom: 6px; }
+    .formula-preview { flex: 1; min-height: 120px; padding: 10px; background: var(--bg,#f5f0e8); border-radius: 8px; overflow: auto; font-size: 16px; line-height: 1.8; display: flex; align-items: center; justify-content: center; }
+    .formula-preview .katex-display { margin: 0; }
+    .formula-modal-footer { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--border,#eee); }
+    .formula-modal-footer button { padding: 7px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+    .formula-insert-btn { border: none; background: var(--accent,#4a7dff); color: #fff; }
+    .formula-insert-btn:hover { opacity: 0.9; }
+    .formula-cancel-btn { border: 1px solid var(--border,#ddd); background: none; }
+    @media (max-width: 600px) {
+      .formula-modal-body { flex-direction: column; }
+      .formula-modal-left { border-right: none; border-bottom: 1px solid var(--border,#eee); }
+    }
+
     /* Quick actions */
     .quick-actions {
       display: flex; gap: 8px; padding: 8px 20px;
@@ -490,6 +528,9 @@
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
 </head>
 <body>
   <div class="container">
@@ -518,8 +559,16 @@
           <span class="quick-chip" onclick="quickSend('帮我安排今天的复习')">📋 今日计划</span>
           <span class="quick-chip" onclick="quickSend('根据我们之前的聊天记录和我的学习数据，帮我分析一下各科的薄弱点')">🔍 薄弱分析</span>
         </div>
+        <div class="image-preview-bar" id="imagePreviewBar" style="display:none">
+          <img id="imagePreviewThumb" src="" alt="预览">
+          <span id="imagePreviewName" style="font-size:12px;color:var(--text-secondary,#888);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+          <button onclick="clearImagePreview()" style="border:none;background:none;cursor:pointer;font-size:16px;color:var(--text-tertiary,#aaa);padding:2px 6px">✕</button>
+        </div>
         <div class="input-area">
-          <input type="text" id="messageInput" placeholder="输入消息，或点击上方快捷操作..." autocomplete="off">
+          <button class="formula-btn" onclick="openFormulaModal()" title="插入数学公式">fx</button>
+          <button class="formula-btn" onclick="document.getElementById('imageFileInput').click()" title="拍照或上传图片识别公式">📷</button>
+          <input type="file" id="imageFileInput" accept="image/*" style="display:none" onchange="handleImageSelect(event)">
+          <input type="text" id="messageInput" placeholder="输入消息，或点击📷拍照识别公式..." autocomplete="off">
           <button class="send-btn" id="sendBtn" disabled>➤</button>
         </div>
       </div>
@@ -529,6 +578,7 @@
         <div class="sidebar-tabs">
           <button class="sidebar-tab active" data-tab="plan" onclick="switchSidebarTab('plan')">📋 今日计划</button>
           <button class="sidebar-tab" data-tab="stats" onclick="switchSidebarTab('stats')">📊 学习统计</button>
+          <button class="sidebar-tab" data-tab="mistakes" onclick="switchSidebarTab('mistakes')">📕 错题本</button>
         </div>
         <div class="sidebar-content" id="sidebarPlan">
           <div id="planContent"></div>
@@ -545,6 +595,9 @@
         <div class="sidebar-content" id="sidebarStats" style="display:none;">
           <div id="statsContent"></div>
         </div>
+        <div class="sidebar-content" id="sidebarMistakes" style="display:none;">
+          <div id="mistakesContent"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -558,12 +611,45 @@
     <div class="sidebar-tabs">
       <button class="sidebar-tab active" data-tab="plan" onclick="switchOverlayTab('plan')">📋 今日计划</button>
       <button class="sidebar-tab" data-tab="stats" onclick="switchOverlayTab('stats')">📊 学习统计</button>
+      <button class="sidebar-tab" data-tab="mistakes" onclick="switchOverlayTab('mistakes')">📕 错题本</button>
     </div>
     <div class="sidebar-content" id="overlayPlan" style="flex:1;overflow-y:auto;padding:12px;">
       <div id="overlayPlanContent"></div>
     </div>
     <div class="sidebar-content" id="overlayStats" style="display:none;flex:1;overflow-y:auto;padding:12px;">
       <div id="overlayStatsContent"></div>
+    </div>
+    <div class="sidebar-content" id="overlayMistakes" style="display:none;flex:1;overflow-y:auto;padding:12px;">
+      <div id="overlayMistakesContent"></div>
+    </div>
+  </div>
+
+  <!-- 公式编辑器弹窗 -->
+  <div class="formula-modal-overlay" id="formulaModal" onclick="if(event.target===this)closeFormulaModal()">
+    <div class="formula-modal">
+      <div class="formula-modal-header">
+        <span>数学公式编辑器</span>
+        <button class="formula-modal-close" onclick="closeFormulaModal()">✕</button>
+      </div>
+      <div class="formula-modal-body">
+        <div class="formula-modal-left">
+          <label>输入公式（LaTeX 语法）</label>
+          <textarea id="formulaInput" placeholder="例如：\frac{1}{2} 或 \int_0^1 x^2 dx" oninput="updateFormulaPreview()"></textarea>
+          <div class="formula-modal-hint">
+            常用语法：\frac{a}{b} 分数 · \sqrt{x} 根号 · x^{n} 上标 · \int 积分 · \sum 求和 · \lim 极限
+          </div>
+        </div>
+        <div class="formula-modal-right">
+          <label>预览效果</label>
+          <div class="formula-preview" id="formulaPreview">
+            <span style="color:var(--text-tertiary,#aaa);font-size:13px">在左侧输入后实时预览</span>
+          </div>
+        </div>
+      </div>
+      <div class="formula-modal-footer">
+        <button class="formula-cancel-btn" onclick="closeFormulaModal()">取消</button>
+        <button class="formula-insert-btn" onclick="insertFormulaFromModal()">插入到消息</button>
+      </div>
     </div>
   </div>
 
@@ -589,6 +675,7 @@
     const PROFILE_KEY = 'kaoyan-profile';
     const STUDY_RECORDS_KEY = 'kaoyan-study-records';
     const PLANS_KEY = 'kaoyan-plans';
+    const MISTAKES_KEY = 'kaoyan-mistakes';
 
     function getProfile() {
       try { const d = localStorage.getItem(PROFILE_KEY); return d ? JSON.parse(d) : null; } catch { return null; }
@@ -892,8 +979,10 @@
       document.querySelectorAll('.sidebar-tabs .sidebar-tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
       document.getElementById('sidebarPlan').style.display = tab==='plan'?'':'none';
       document.getElementById('sidebarStats').style.display = tab==='stats'?'':'none';
+      document.getElementById('sidebarMistakes').style.display = tab==='mistakes'?'':'none';
       if (tab==='plan') { renderPlanPanel(); renderHistoryPlan(); }
       if (tab==='stats') renderStatsPanel();
+      if (tab==='mistakes') renderMistakesPanel();
     }
 
     // ==================== Mobile overlay ====================
@@ -909,7 +998,9 @@
       document.querySelectorAll('#sidebarOverlay .sidebar-tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
       document.getElementById('overlayPlan').style.display = tab==='plan'?'':'none';
       document.getElementById('overlayStats').style.display = tab==='stats'?'':'none';
+      document.getElementById('overlayMistakes').style.display = tab==='mistakes'?'':'none';
       if (tab==='stats') renderStatsPanel('overlayStatsContent');
+      if (tab==='mistakes') renderMistakesPanel('overlayMistakesContent');
     }
 
     // ==================== 记忆上下文 ====================
@@ -939,9 +1030,166 @@
         if(done.length) ctx+=`已完成: ${done.map(i=>i.subject+'-'+i.task).join('、')}\n`;
         if(pending.length) ctx+=`待完成: ${pending.map(i=>i.time+' '+i.subject+'-'+i.task).join('、')}\n\n`;
       }
+      const mistakes=getMistakes();
+      if (mistakes.length>0) {
+        const grouped=getMistakesBySubject();
+        ctx+='【错题本】\n';
+        ctx+=`共${mistakes.length}道错题，`;
+        ctx+=Object.entries(grouped).map(([k,v])=>`${k}${v.length}道`).join('、')+'\n';
+        const recent=mistakes.slice(0,3);
+        ctx+=`最近: ${recent.map(m=>m.subject+'-'+(m.question||'').substring(0,20)).join('；')}\n\n`;
+      }
       return ctx;
     }
     function getPlansJson() { return JSON.stringify(getPlans()); }
+
+    // ==================== 错题本管理 ====================
+    function getMistakes() {
+      try { return JSON.parse(localStorage.getItem(MISTAKES_KEY) || '[]'); } catch { return []; }
+    }
+    function addMistake(r) {
+      const mistakes = getMistakes();
+      mistakes.unshift({ ...r, createdAt: r.createdAt || Date.now() });
+      if (mistakes.length > 200) mistakes.length = 200;
+      localStorage.setItem(MISTAKES_KEY, JSON.stringify(mistakes));
+      return mistakes;
+    }
+    function deleteMistake(id) {
+      const mistakes = getMistakes().filter(m => m.id !== id);
+      localStorage.setItem(MISTAKES_KEY, JSON.stringify(mistakes));
+      return mistakes;
+    }
+    function getMistakesBySubject() {
+      const grouped = {};
+      for (const m of getMistakes()) {
+        const subj = m.subject || '未分类';
+        if (!grouped[subj]) grouped[subj] = [];
+        grouped[subj].push(m);
+      }
+      return grouped;
+    }
+
+    function renderMistakesPanel(targetId) {
+      const content = document.getElementById(targetId || 'mistakesContent');
+      if (!content) return;
+      const mistakes = getMistakes();
+      const grouped = getMistakesBySubject();
+      const subjects = Object.keys(grouped);
+      const errorTypes = {};
+      for (const m of mistakes) { const t = m.errorType || '未分类'; errorTypes[t] = (errorTypes[t]||0) + 1; }
+
+      let html = '';
+      // 统计卡片
+      html += '<div class="stat-card"><div class="stat-card-title">📕 错题总览</div>';
+      html += `<div class="stat-row"><div class="stat-item"><div class="stat-value">${mistakes.length}</div><div class="stat-label">总错题</div></div>`;
+      html += `<div class="stat-item"><div class="stat-value">${subjects.length}</div><div class="stat-label">涉及科目</div></div></div>`;
+      if (subjects.length) {
+        for (const subj of subjects) {
+          const pct = mistakes.length ? Math.round(grouped[subj].length / mistakes.length * 100) : 0;
+          html += `<div style="margin-top:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px"><span>${subj}</span><span>${grouped[subj].length}题 (${pct}%)</span></div>`;
+          html += `<div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%"></div></div></div>`;
+        }
+      }
+      html += '</div>';
+
+      // 错误类型分布
+      if (Object.keys(errorTypes).length) {
+        html += '<div class="stat-card"><div class="stat-card-title">🔍 错误类型</div>';
+        for (const [type, count] of Object.entries(errorTypes)) {
+          const pct = Math.round(count / mistakes.length * 100);
+          html += `<div style="display:flex;align-items:center;gap:8px;margin:6px 0"><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:var(--accent-light,#e8f0fe);color:var(--accent,#4a7dff)">${type}</span>`;
+          html += `<span style="flex:1;height:6px;border-radius:3px;background:var(--border,#e0e0e0)"><span style="display:block;height:100%;border-radius:3px;background:var(--accent,#4a7dff);width:${pct}%"></span></span>`;
+          html += `<span style="font-size:12px;color:var(--text-secondary,#888)">${count}题</span></div>`;
+        }
+        html += '</div>';
+      }
+
+      // 按科目分组展示
+      for (const subj of subjects) {
+        html += `<div class="stat-card"><div class="stat-card-title">${subj} (${grouped[subj].length}题)</div>`;
+        for (const m of grouped[subj].slice(0, 10)) {
+          const q = (m.question || '').length > 50 ? m.question.substring(0, 50) + '...' : (m.question || '未记录');
+          const dateStr = m.date || '';
+          const errTag = m.errorType ? `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:10px;background:var(--accent-light,#e8f0fe);color:var(--accent,#4a7dff);margin-left:6px">${m.errorType}</span>` : '';
+          html += `<div class="mistake-item" data-id="${m.id}" style="padding:8px 0;border-bottom:1px solid var(--border,#eee)">`;
+          html += `<div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleMistakeDetail(this.parentElement)">`;
+          html += `<div style="font-size:13px;flex:1">${escapeHtml(q)}${errTag}</div>`;
+          html += `<div style="display:flex;align-items:center;gap:6px;margin-left:8px">`;
+          html += `<span style="font-size:11px;color:var(--text-tertiary,#aaa);white-space:nowrap">${dateStr}</span>`;
+          html += `<button onclick="event.stopPropagation();editMistake('${m.id}')" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 4px" title="编辑">✏️</button>`;
+          html += `<button onclick="event.stopPropagation();confirmDeleteMistake('${m.id}')" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 4px" title="删除">🗑️</button>`;
+          html += `</div></div>`;
+          if (m.analysis) {
+            html += `<div class="mistake-detail" style="display:none;margin-top:8px;padding:10px;background:var(--surface,#f8f8f8);border-radius:8px;font-size:13px;line-height:1.7">${renderContent(m.analysis)}</div>`;
+          }
+          html += '</div>';
+        }
+        if (grouped[subj].length > 10) {
+          html += `<div style="text-align:center;padding:8px;font-size:12px;color:var(--text-tertiary,#aaa)">还有 ${grouped[subj].length - 10} 道错题...</div>`;
+        }
+        html += '</div>';
+      }
+
+      if (!mistakes.length) {
+        html += '<div class="stat-card"><div style="text-align:center;padding:20px;color:var(--text-tertiary,#aaa)">还没有错题记录<br><span style="font-size:12px">在对话中发送 "记录一道高数错题" 开始记录吧</span></div></div>';
+      }
+
+      content.innerHTML = html;
+    }
+
+    function toggleMistakeDetail(el) {
+      const detail = el.querySelector('.mistake-detail');
+      if (detail) detail.style.display = detail.style.display === 'none' ? '' : 'none';
+    }
+
+    // ==================== 错题编辑 ====================
+    function editMistake(id) {
+      const mistakes = getMistakes();
+      const m = mistakes.find(x => x.id === id);
+      if (!m) return;
+      const item = document.querySelector(`.mistake-item[data-id="${id}"]`);
+      if (!item) return;
+
+      const errorTypes = ['概念混淆','计算失误','方法错误','审题不清','未分类'];
+      const optionsHtml = errorTypes.map(t => `<option value="${t}" ${t===(m.errorType||'未分类')?'selected':''}>${t}</option>`).join('');
+
+      item.innerHTML = `
+        <div style="padding:4px 0">
+          <div style="font-size:12px;color:var(--text-secondary,#888);margin-bottom:6px">编辑错题</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <label style="font-size:12px">题目<textarea class="edit-field" data-field="question" style="width:100%;min-height:48px;padding:6px;border:1px solid var(--border,#ddd);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical">${escapeHtml(m.question||'')}</textarea></label>
+            <label style="font-size:12px">错误答案<input class="edit-field" data-field="userAnswer" type="text" value="${escapeHtml(m.userAnswer||'')}" style="width:100%;padding:6px;border:1px solid var(--border,#ddd);border-radius:6px;font-size:12px;font-family:inherit"></label>
+            <label style="font-size:12px">正确答案<input class="edit-field" data-field="correctAnswer" type="text" value="${escapeHtml(m.correctAnswer||'')}" style="width:100%;padding:6px;border:1px solid var(--border,#ddd);border-radius:6px;font-size:12px;font-family:inherit"></label>
+            <label style="font-size:12px">错误类型<select class="edit-field" data-field="errorType" style="width:100%;padding:6px;border:1px solid var(--border,#ddd);border-radius:6px;font-size:12px">${optionsHtml}</select></label>
+            <label style="font-size:12px">分析<textarea class="edit-field" data-field="analysis" style="width:100%;min-height:80px;padding:6px;border:1px solid var(--border,#ddd);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical">${escapeHtml(m.analysis||'')}</textarea></label>
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+              <button onclick="renderMistakesPanel()" style="padding:5px 14px;border:1px solid var(--border,#ddd);border-radius:6px;background:none;cursor:pointer;font-size:12px">取消</button>
+              <button onclick="saveMistakeEdit('${id}')" style="padding:5px 14px;border:none;border-radius:6px;background:var(--accent,#4a7dff);color:#fff;cursor:pointer;font-size:12px">保存</button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function saveMistakeEdit(id) {
+      const item = document.querySelector(`.mistake-item[data-id="${id}"]`);
+      if (!item) return;
+      const fields = item.querySelectorAll('.edit-field');
+      const updates = {};
+      fields.forEach(f => { updates[f.dataset.field] = f.value; });
+
+      const mistakes = getMistakes();
+      const idx = mistakes.findIndex(x => x.id === id);
+      if (idx === -1) return;
+      Object.assign(mistakes[idx], updates);
+      localStorage.setItem(MISTAKES_KEY, JSON.stringify(mistakes));
+      renderMistakesPanel();
+    }
+
+    function confirmDeleteMistake(id) {
+      if (!confirm('确定删除这道错题吗？')) return;
+      deleteMistake(id);
+      renderMistakesPanel();
+    }
 
     // ==================== 提取并保存信息 ====================
     function extractAndSave(m) {
@@ -1030,10 +1278,87 @@
           if (message.type==='chat'&&message.text) {
             hideTyping(); addMessage(message.text, 'assistant', true);
             try { if (message.planData?.items) { savePlan(message.planData); renderPlanPanel(); renderHistoryPlan(); } } catch(e) { console.error('[Plan] save error:', e); }
+            try { if (message.mistakeData) { addMistake(message.mistakeData); renderMistakesPanel(); } } catch(e) { console.error('[Mistake] save error:', e); }
           }
         } catch(e) { console.error('[WS] message error:', e); hideTyping(); }
       };
       ws.onclose = () => { statusDot.classList.remove('connected'); statusText.textContent='未连接'; sendBtn.disabled=true; setTimeout(connect, 5000); };
+    }
+
+    // ==================== 内容渲染（Markdown + LaTeX） ====================
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function renderContent(text) {
+      if (!text) return '';
+      // 检查 KaTeX 是否加载成功
+      const hasKatex = typeof katex !== 'undefined';
+      const hasMarked = typeof marked !== 'undefined';
+
+      // 先转义 HTML 防止 XSS
+      let html = escapeHtml(text);
+
+      // 提取 LaTeX 公式占位符，避免被 marked 处理
+      const formulas = [];
+      // 块级公式 $$...$$
+      html = html.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => {
+        const idx = formulas.length;
+        formulas.push({ tex: tex.trim(), display: true });
+        return `%%FORMULA_${idx}%%`;
+      });
+      // 行内公式 $...$（不匹配转义的 \$ 和空的 $$）
+      html = html.replace(/(?<!\$)\$(?!\$)((?:[^$\\]|\\.)+?)\$(?!\$)/g, (_, tex) => {
+        const idx = formulas.length;
+        formulas.push({ tex: tex.trim(), display: false });
+        return `%%FORMULA_${idx}%%`;
+      });
+      // \[...\] 块级
+      html = html.replace(/\\\[([\s\S]+?)\\\]/g, (_, tex) => {
+        const idx = formulas.length;
+        formulas.push({ tex: tex.trim(), display: true });
+        return `%%FORMULA_${idx}%%`;
+      });
+      // \(...\) 行内
+      html = html.replace(/\\\((.+?)\\\)/g, (_, tex) => {
+        const idx = formulas.length;
+        formulas.push({ tex: tex.trim(), display: false });
+        return `%%FORMULA_${idx}%%`;
+      });
+
+      // 用 marked 解析 Markdown
+      if (hasMarked) {
+        try { html = marked.parse(html, { breaks: true }); } catch(e) { /* fallback to plain */ }
+      } else {
+        // 简易 markdown：换行、粗体、行内代码
+        html = html.replace(/\n/g, '<br>');
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+      }
+
+      // 还原公式为 KaTeX 渲染
+      if (hasKatex) {
+        for (let i = 0; i < formulas.length; i++) {
+          try {
+            const rendered = katex.renderToString(formulas[i].tex, {
+              displayMode: formulas[i].display,
+              throwOnError: false,
+              trust: true
+            });
+            html = html.replace(`%%FORMULA_${i}%%`, rendered);
+          } catch(e) {
+            html = html.replace(`%%FORMULA_${i}%%`, `<code>${escapeHtml(formulas[i].tex)}</code>`);
+          }
+        }
+      } else {
+        // KaTeX 未加载，显示原始 LaTeX
+        for (let i = 0; i < formulas.length; i++) {
+          const prefix = formulas[i].display ? '$$' : '$';
+          html = html.replace(`%%FORMULA_${i}%%`, `<code>${prefix}${escapeHtml(formulas[i].tex)}${prefix}</code>`);
+        }
+      }
+
+      return html;
     }
 
     function addMessage(text, type, save=true) {
@@ -1046,13 +1371,15 @@
       content.className = 'msg-content';
       const msgDiv = document.createElement('div');
       msgDiv.className = `message ${type}`;
+      const rendered = type==='assistant' ? renderContent(text) : null;
       if (type==='assistant'&&text.length>500) {
-        msgDiv.classList.add('collapsed'); msgDiv.textContent=text;
+        msgDiv.classList.add('collapsed'); msgDiv.innerHTML=rendered;
         const btn = document.createElement('button');
         btn.className='msg-expand-btn'; btn.textContent='展开全文';
         btn.onclick=()=>{ msgDiv.classList.toggle('collapsed'); btn.textContent=msgDiv.classList.contains('collapsed')?'展开全文':'收起'; };
         content.appendChild(msgDiv); content.appendChild(btn);
-      } else { msgDiv.textContent=text; content.appendChild(msgDiv); }
+      } else if (type==='assistant') { msgDiv.innerHTML=rendered; content.appendChild(msgDiv); }
+      else { msgDiv.textContent=text; content.appendChild(msgDiv); }
       const timeDiv = document.createElement('div');
       timeDiv.className='msg-time';
       const now=new Date();
@@ -1083,25 +1410,98 @@
 
     function sendMessage() {
       const text = messageInput.value.trim();
-      if (!text) return;
+      const imgBase64 = pendingImageBase64;
+      if (!text && !imgBase64) return;
       if (!ws||ws.readyState!==WebSocket.OPEN) {
         addMessage('连接已断开，正在重连...', 'assistant', false);
         connect(); return;
       }
-      addMessage(text, 'user', true); showTyping();
-      try {
-        const before = getStudyRecords().length;
-        extractAndSave(text);
-        const after = getStudyRecords().length;
-        console.log(`[sendMessage] 学习记录: ${before} → ${after} 条`);
-        renderStatsPanel();
-        console.log('[sendMessage] 统计面板已刷新');
-      } catch(e) { console.error('[sendMessage] extractAndSave error:', e); }
-      ws.send(JSON.stringify({ type:'chat', text, deviceId, timestamp:Date.now(), memoryContext:getMemoryContext(), plansJson:getPlansJson() }));
+      const displayText = imgBase64 ? (text || '[图片] 请识别公式') : text;
+      addMessage(displayText, 'user', true); showTyping();
+      if (text) {
+        try {
+          const before = getStudyRecords().length;
+          extractAndSave(text);
+          const after = getStudyRecords().length;
+          console.log(`[sendMessage] 学习记录: ${before} → ${after} 条`);
+          renderStatsPanel();
+        } catch(e) { console.error('[sendMessage] extractAndSave error:', e); }
+      }
+      const payload = { type:'chat', text: text || '', deviceId, timestamp:Date.now(), memoryContext:getMemoryContext(), plansJson:getPlansJson() };
+      if (imgBase64) payload.imageBase64 = imgBase64;
+      ws.send(JSON.stringify(payload));
       messageInput.value=''; messageInput.focus();
+      if (imgBase64) clearImagePreview();
     }
 
     function quickSend(text) { messageInput.value=text; sendMessage(); }
+
+    // ==================== 公式编辑器 ====================
+    function openFormulaModal() {
+      document.getElementById('formulaModal').classList.add('open');
+      document.getElementById('formulaInput').value = '';
+      document.getElementById('formulaPreview').innerHTML = '<span style="color:var(--text-tertiary,#aaa);font-size:13px">在左侧输入后实时预览</span>';
+      setTimeout(() => document.getElementById('formulaInput').focus(), 100);
+    }
+    function closeFormulaModal() {
+      document.getElementById('formulaModal').classList.remove('open');
+    }
+    function updateFormulaPreview() {
+      const tex = document.getElementById('formulaInput').value.trim();
+      const preview = document.getElementById('formulaPreview');
+      if (!tex) {
+        preview.innerHTML = '<span style="color:var(--text-tertiary,#aaa);font-size:13px">在左侧输入后实时预览</span>';
+        return;
+      }
+      if (typeof katex !== 'undefined') {
+        try {
+          preview.innerHTML = katex.renderToString(tex, { displayMode: true, throwOnError: false, trust: true });
+        } catch(e) {
+          preview.innerHTML = '<span style="color:#d44;font-size:12px">公式格式有误: ' + e.message + '</span>';
+        }
+      } else {
+        preview.textContent = tex;
+      }
+    }
+    function insertFormulaFromModal() {
+      const tex = document.getElementById('formulaInput').value.trim();
+      if (!tex) return;
+      const input = messageInput;
+      const before = input.value.substring(0, input.selectionStart);
+      const after = input.value.substring(input.selectionEnd);
+      input.value = before + ' $' + tex + '$ ' + after;
+      input.focus();
+      const pos = before.length + tex.length + 3;
+      input.setSelectionRange(pos, pos);
+      closeFormulaModal();
+    }
+
+    // ==================== 图片识别 ====================
+    let pendingImageBase64 = null;
+
+    function handleImageSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (file.size > 10 * 1024 * 1024) {
+        alert('图片大小不能超过10MB'); return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        pendingImageBase64 = e.target.result;
+        document.getElementById('imagePreviewThumb').src = pendingImageBase64;
+        document.getElementById('imagePreviewName').textContent = file.name;
+        document.getElementById('imagePreviewBar').style.display = 'flex';
+      };
+      reader.readAsDataURL(file);
+      event.target.value = '';
+    }
+
+    function clearImagePreview() {
+      pendingImageBase64 = null;
+      document.getElementById('imagePreviewBar').style.display = 'none';
+      document.getElementById('imagePreviewThumb').src = '';
+      document.getElementById('imagePreviewName').textContent = '';
+    }
 
     sendBtn.addEventListener('click', sendMessage);
     messageInput.addEventListener('keypress', e => { if(e.key==='Enter') sendMessage(); });

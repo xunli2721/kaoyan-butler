@@ -40,5 +40,6 @@ export interface LLMResponse {
 export interface LLMClient {
   isAvailable(): boolean;
   chat(request: LLMRequest): Promise<LLMResponse>;
-  simpleChat(message: string): Promise<string>;
+  simpleChat(message: string, memoryContext?: string): Promise<string>;
+  imageChat?(message: string, imageBase64: string, memoryContext?: string): Promise<string>;
 }

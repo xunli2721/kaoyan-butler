@@ -88,17 +88,3 @@ export function regexMatch(message: string): { type: string; response: string } 
 
   return null;
 }
-
-/**
- * 获取所有正则规则（用于展示/调试）
- */
-export function getRegexRules(): RegexRule[] {
-  return REGEX_RULES;
-}
-
-/**
- * 获取关键词总数
- */
-export function getKeywordCount(): number {
-  return REGEX_RULES.reduce((sum, rule) => sum + rule.keywords.length, 0);
-}

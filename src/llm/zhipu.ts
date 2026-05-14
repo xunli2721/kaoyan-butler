@@ -73,11 +73,70 @@ export class ZhipuClient implements LLMClient {
     }
   }
 
-  async simpleChat(message: string): Promise<string> {
+  async simpleChat(message: string, memoryContext?: string): Promise<string> {
     const response = await this.chat({
       messages: [{ role: 'user', content: message }],
+      context: memoryContext ? { memoryContext } : undefined,
     });
     return response.content;
+  }
+
+  /**
+   * 多模态对话：支持图片+文本 (GLM-4V)
+   */
+  async imageChat(message: string, imageBase64: string, memoryContext?: string): Promise<string> {
+    if (!this.apiKey) {
+      return '智谱API Key未配置，请设置环境变量ZHIPU_API_KEY';
+    }
+
+    const contextPrefix = memoryContext ? `【记忆上下文】\n${memoryContext}\n\n` : '';
+    const fullPrompt = `${contextPrefix}${message}`;
+
+    const content: any[] = [
+      { type: 'text', text: fullPrompt },
+      { type: 'image_url', image_url: { url: imageBase64 } },
+    ];
+
+    try {
+      const response = await this.callVisionAPI(content);
+      return response;
+    } catch (error: any) {
+      console.error('[智谱] 图片识别失败:', error);
+      return `图片识别失败: ${error.message}`;
+    }
+  }
+
+  private async callVisionAPI(content: any[]): Promise<string> {
+    const url = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'GLM-4.6V-FlashX',
+          messages: [{ role: 'user', content }],
+          temperature: 0.7,
+          max_tokens: 2048,
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API请求失败: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json() as any;
+      return data.choices[0].message.content;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   private async callZhipuAPI(prompt: string): Promise<string> {

@@ -10,9 +10,9 @@ import { regexMatch } from './regex.js';
 import { aiIntentRecognition, IntentResult } from './ai.js';
 import { safetyCheck, SafetyResult } from './safety.js';
 
-export { regexMatch, getRegexRules, getKeywordCount } from './regex.js';
-export { aiIntentRecognition, type IntentResult } from './ai.js';
-export { safetyCheck, type SafetyResult } from './safety.js';
+export { regexMatch } from './regex.js';
+export { type IntentResult } from './ai.js';
+export { type SafetyResult } from './safety.js';
 
 // 完整的意图处理结果
 export interface IntentProcessResult {

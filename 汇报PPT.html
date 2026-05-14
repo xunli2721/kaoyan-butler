@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>考研小管家 - 项目中期汇报</title>
+  <link href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'LXGW WenKai', -apple-system, sans-serif;
+      background: #1a1a1a;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    .slide {
+      display: none;
+      width: 100vw;
+      height: 100vh;
+      padding: 60px 80px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    .slide.active {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    /* 封面 */
+    .cover {
+      background: linear-gradient(135deg, #2c2417 0%, #4a3f35 50%, #5a4a3e 100%);
+      color: #fffcf7;
+      align-items: center;
+      text-align: center;
+    }
+    .cover h1 {
+      font-size: 56px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, #c47d3f, #e8a85c);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .cover .subtitle {
+      font-size: 28px;
+      color: #b5aa97;
+      margin-bottom: 40px;
+    }
+    .cover .info {
+      font-size: 18px;
+      color: #8a7e6d;
+      line-height: 2;
+    }
+
+    /* 内容页 */
+    .content {
+      background: #fffcf7;
+      color: #2c2417;
+    }
+    .content h2 {
+      font-size: 42px;
+      font-weight: 600;
+      color: #5a4a3e;
+      margin-bottom: 40px;
+      padding-bottom: 15px;
+      border-bottom: 3px solid #c47d3f;
+    }
+    .content h3 {
+      font-size: 24px;
+      color: #8b7355;
+      margin: 25px 0 15px;
+    }
+    .content p, .content li {
+      font-size: 20px;
+      line-height: 1.8;
+      color: #4a3f35;
+    }
+    .content ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    .content li::before {
+      content: "▸ ";
+      color: #c47d3f;
+      font-weight: bold;
+    }
+
+    /* 表格 */
+    .content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 18px;
+    }
+    .content th, .content td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid #e0d8cc;
+    }
+    .content th {
+      background: #f5f0e8;
+      color: #5a4a3e;
+      font-weight: 600;
+    }
+
+    /* 架构图 */
+    .arch-box {
+      background: #f5f0e8;
+      border-radius: 12px;
+      padding: 30px;
+      font-family: monospace;
+      font-size: 16px;
+      line-height: 1.6;
+      color: #4a3f35;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    /* 演示框 */
+    .demo-box {
+      background: #2c2417;
+      border-radius: 12px;
+      padding: 25px 30px;
+      color: #fffcf7;
+      font-size: 18px;
+      line-height: 1.8;
+      margin: 15px 0;
+    }
+    .demo-box .label {
+      color: #c47d3f;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .demo-box .user { color: #88c0d0; }
+    .demo-box .ai { color: #a3be8c; }
+    .demo-box .highlight { color: #ebcb8b; }
+
+    /* 数字高亮 */
+    .number {
+      font-size: 48px;
+      font-weight: 700;
+      color: #c47d3f;
+      display: inline-block;
+      margin-right: 10px;
+    }
+
+    /* 进度条 */
+    .progress-bar {
+      height: 24px;
+      background: #e0d8cc;
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 20px 0;
+    }
+    .progress-bar .fill {
+      height: 100%;
+      background: linear-gradient(90deg, #c47d3f, #e8a85c);
+      border-radius: 12px;
+      transition: width 1s ease;
+    }
+
+    /* 代码块 */
+    .code-block {
+      background: #2c2417;
+      border-radius: 8px;
+      padding: 20px;
+      font-family: 'Consolas', monospace;
+      font-size: 14px;
+      color: #d8dee9;
+      overflow-x: auto;
+      margin: 15px 0;
+    }
+    .code-block .keyword { color: #81a1c1; }
+    .code-block .string { color: #a3be8c; }
+    .code-block .comment { color: #616e88; }
+
+    /* 导航 */
+    .nav {
+      position: fixed;
+      bottom: 30px;
+      right: 40px;
+      display: flex;
+      gap: 15px;
+      z-index: 100;
+    }
+    .nav button {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 2px solid #c47d3f;
+      background: rgba(196, 125, 63, 0.2);
+      color: #c47d3f;
+      font-size: 20px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .nav button:hover {
+      background: #c47d3f;
+      color: #fff;
+    }
+
+    /* 页码 */
+    .page-number {
+      position: fixed;
+      bottom: 35px;
+      left: 40px;
+      font-size: 16px;
+      color: #8a7e6d;
+      z-index: 100;
+    }
+
+    /* 分栏布局 */
+    .columns {
+      display: flex;
+      gap: 40px;
+      flex: 1;
+    }
+    .column {
+      flex: 1;
+    }
+
+    /* 标签 */
+    .tag {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 16px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-right: 8px;
+    }
+    .tag-done { background: #eaf3ed; color: #5a8a6a; }
+    .tag-plan { background: #fdf3e7; color: #c47d3f; }
+  </style>
+</head>
+<body>
+
+  <!-- 第1页：封面 -->
+  <div class="slide cover active" id="slide-1">
+    <h1>考研小管家</h1>
+    <p class="subtitle">AI考研备考助手 · 项目中期汇报</p>
+    <div class="info">
+      <p>项目完成度：92%（10/11阶段）</p>
+      <p>核心技术：三层意图识别 · 长期记忆 · 主动服务</p>
+    </div>
+  </div>
+
+  <!-- 第2页：项目概览 -->
+  <div class="slide content" id="slide-2">
+    <h2>项目概览</h2>
+    <div class="columns">
+      <div class="column">
+        <h3>核心价值</h3>
+        <p><strong>"聊天即备考"</strong>——用自然语言管理考研四科复习</p>
+        <h3>解决的痛点</h3>
+        <ul>
+          <li>四科复习难以平衡</li>
+          <li>计划混乱、执行困难</li>
+          <li>知识点记了又忘</li>
+          <li>长期备考心态焦虑</li>
+        </ul>
+      </div>
+      <div class="column">
+        <h3>技术栈</h3>
+        <ul>
+          <li>前端：HTML + CSS + JavaScript</li>
+          <li>后端：Node.js + Express + WebSocket</li>
+          <li>AI：DeepSeek API（OpenAI兼容）</li>
+          <li>存储：LocalStorage（浏览器端）</li>
+          <li>图表：Chart.js 4.x</li>
+        </ul>
+        <h3>开发周期</h3>
+        <p>12周，当前进度：第10周</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 第3页：完成度 -->
+  <div class="slide content" id="slide-3">
+    <h2>项目进展总览</h2>
+    <div style="display: flex; align-items: center; gap: 30px; margin-bottom: 30px;">
+      <div class="number">92%</div>
+      <div>
+        <p style="font-size: 24px;">总体完成度</p>
+        <p style="color: #8a7e6d;">10/11 个阶段已完成</p>
+      </div>
+    </div>
+    <div class="progress-bar">
+      <div class="fill" style="width: 92%;"></div>
+    </div>
+    <table>
+      <tr><th>阶段</th><th>内容</th><th>状态</th></tr>
+      <tr><td>阶段1-4</td><td>骨架 · 意图识别 · 记忆 · 计划</td><td><span class="tag tag-done">已完成</span></td></tr>
+      <tr><td>阶段5-8</td><td>问答 · 提醒 · 统计 · 情绪</td><td><span class="tag tag-done">已完成</span></td></tr>
+      <tr><td>阶段9-10</td><td>交互优化 · 整合测试</td><td><span class="tag tag-done">已完成</span></td></tr>
+      <tr><td>阶段11</td><td>部署与汇报</td><td><span class="tag tag-plan">进行中</span></td></tr>
+    </table>
+  </div>
+
+  <!-- 第4页：功能列表 -->
+  <div class="slide content" id="slide-4">
+    <h2>已完成功能</h2>
+    <div class="columns">
+      <div class="column">
+        <h3>核心功能</h3>
+        <ul>
+          <li>三层意图识别系统</li>
+          <li>长期记忆系统</li>
+          <li>考研计划生成</li>
+          <li>考研知识问答</li>
+          <li>情绪关怀系统</li>
+        </ul>
+      </div>
+      <div class="column">
+        <h3>辅助功能</h3>
+        <ul>
+          <li>学习数据统计（Chart.js）</li>
+          <li>复习提醒服务</li>
+          <li>计划面板交互</li>
+          <li>移动端适配</li>
+          <li>自动重连机制</li>
+        </ul>
+      </div>
+    </div>
+    <h3>测试覆盖</h3>
+    <ul>
+      <li>意图识别单元测试：30/30 通过</li>
+      <li>功能整合测试：21/21 通过</li>
+      <li>WebSocket端到端测试：10/10 通过</li>
+    </ul>
+  </div>
+
+  <!-- 第5页：演示 - 意图识别 -->
+  <div class="slide content" id="slide-5">
+    <h2>核心功能演示：三层意图识别</h2>
+    <div class="demo-box">
+      <div class="label">用户输入：</div>
+      <div class="user">感觉来不及了</div>
+    </div>
+    <div class="demo-box">
+      <div class="label">系统响应：</div>
+      <div class="ai">考研路上，焦虑和迷茫是正常的，每个考研人都经历过。你不是一个人在战斗：</div>
+      <div class="ai">1. 深呼吸，给自己5分钟放空时间</div>
+      <div class="ai">2. 回顾一下你已经走过的路，你比想象中更强大</div>
+      <div class="ai">3. 把大目标拆成小任务，一步一步来</div>
+    </div>
+    <div style="margin-top: 20px;">
+      <ul>
+        <li><span class="highlight">第一层</span>：正则匹配 ≤15字短消息，零API成本</li>
+        <li><span class="highlight">第二层</span>：AI识别 5大类20+子意图</li>
+        <li><span class="highlight">第三层</span>：安全检查 考研焦虑关键词30+</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 第6页：演示 - 长期记忆 -->
+  <div class="slide content" id="slide-6">
+    <h2>核心功能演示：长期记忆</h2>
+    <div class="columns">
+      <div class="column">
+        <h3>第1次会话</h3>
+        <div class="demo-box">
+          <div class="label">用户输入：</div>
+          <div class="user">我叫小明，考浙大计算机，数学是弱项</div>
+        </div>
+        <p style="margin-top: 15px; color: #8a7e6d;">系统自动保存到LocalStorage</p>
+      </div>
+      <div class="column">
+        <h3>刷新页面 → 第2次会话</h3>
+        <div class="demo-box">
+          <div class="label">用户输入：</div>
+          <div class="user">帮我安排今天的复习</div>
+        </div>
+        <div class="demo-box">
+          <div class="label">系统响应：</div>
+          <div class="ai">高数安排了更多时间（重点加强）</div>
+          <div class="ai"><span class="highlight">"根据你的薄弱科目..."</span></div>
+        </div>
+      </div>
+    </div>
+    <p style="margin-top: 20px; text-align: center; font-size: 22px; color: #5a4a3e;">跨会话记忆有效 · 设备即身份 · 无需注册登录</p>
+  </div>
+
+  <!-- 第7页：演示 - 计划生成 -->
+  <div class="slide content" id="slide-7">
+    <h2>核心功能演示：考研计划生成</h2>
+    <div class="demo-box">
+      <div class="label">用户输入：</div>
+      <div class="user">帮我安排明天的英语复习，重点是阅读</div>
+    </div>
+    <div class="demo-box">
+      <div class="label">系统响应：</div>
+      <div class="ai">📋 2026-05-11 的复习计划已安排好：</div>
+      <div class="ai">⬜ 09:00-10:30 英语 - 阅读理解精读3篇（<span class="highlight">重点训练</span>）</div>
+      <div class="ai">⬜ 10:45-12:00 英语 - 阅读技巧笔记整理</div>
+      <div class="ai">⬜ 14:00-15:30 高数 - 复习微分中值定理</div>
+      <div class="ai">⬜ 16:00-17:00 政治 - 马原辩证法</div>
+      <div class="ai">⬜ 19:00-20:30 英语 - 长难句分析练习</div>
+    </div>
+    <p style="margin-top: 20px; text-align: center; font-size: 22px; color: #5a4a3e;">自然语言理解 · 智能分配四科 · 点击切换完成状态</p>
+  </div>
+
+  <!-- 第8页：技术架构 -->
+  <div class="slide content" id="slide-8">
+    <h2>技术架构</h2>
+    <div class="arch-box">┌─────────────────────────────────────────────┐
+│                  前端 (浏览器)                │
+│  HTML/CSS/JS · LocalStorage · WebSocket     │
+│  ┌──────────┐ ┌──────────┐ ┌──────────────┐│
+│  │ 聊天界面  │ │ 计划面板  │ │ 统计面板     ││
+│  └──────────┘ └──────────┘ └──────────────┘│
+└──────────────────┬──────────────────────────┘
+                   │ WebSocket (JSON)
+┌──────────────────┴──────────────────────────┐
+│                后端 (Node.js)                │
+│  Express + WebSocketServer + TypeScript      │
+│  ┌──────────┐ ┌──────────┐ ┌──────────────┐│
+│  │ 意图识别  │ │ 意图路由  │ │ DeepSeek API ││
+│  │ (三层)    │ │ (分发)   │ │              ││
+│  └──────────┘ └──────────┘ └──────────────┘│
+└─────────────────────────────────────────────┘</div>
+  </div>
+
+  <!-- 第9页：关键决策 -->
+  <div class="slide content" id="slide-9">
+    <h2>关键技术决策</h2>
+    <table>
+      <tr><th>决策</th><th>方案</th><th>理由</th><th>效果</th></tr>
+      <tr>
+        <td>意图识别</td>
+        <td>三层架构</td>
+        <td>性能+成本+安全</td>
+        <td>正则命中40%，AI准确率>90%</td>
+      </tr>
+      <tr>
+        <td>数据存储</td>
+        <td>LocalStorage</td>
+        <td>零成本+隐私保护</td>
+        <td>无需数据库，数据在用户端</td>
+      </tr>
+      <tr>
+        <td>意图路由</td>
+        <td>分发到专用处理器</td>
+        <td>职责分离+可扩展</td>
+        <td>4个处理器独立维护</td>
+      </tr>
+      <tr>
+        <td>AI模型</td>
+        <td>DeepSeek API</td>
+        <td>价格低+OpenAI兼容</td>
+        <td>约1元/百万token</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- 第10页：问题与经验 -->
+  <div class="slide content" id="slide-10">
+    <h2>问题与协作经验</h2>
+    <div class="columns">
+      <div class="column">
+        <h3>遇到的问题</h3>
+        <ul>
+          <li><strong>学习记录提取</strong>："背单词两小时"无法识别<br>
+            <span style="color: #8a7e6d;">→ 扩展关键词库，提取率70%→90%</span></li>
+          <li><strong>WebSocket断连</strong>：网络波动导致断开<br>
+            <span style="color: #8a7e6d;">→ 添加自动重连机制（5秒间隔）</span></li>
+          <li><strong>面板切换冲突</strong>：计划/统计同时打开<br>
+            <span style="color: #8a7e6d;">→ 设计Tab切换互斥机制</span></li>
+        </ul>
+      </div>
+      <div class="column">
+        <h3>Agent协作经验</h3>
+        <ul>
+          <li><strong>精确指令</strong>：模糊指令导致返工，精确指令一次到位</li>
+          <li><strong>分步验证</strong>：每层独立测试，问题定位快速</li>
+          <li><strong>场景特化</strong>：通用方案需针对考研定制</li>
+        </ul>
+        <h3>协作方式</h3>
+        <p>Claude Code · 探索→讨论→实现→测试→文档</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 第11页：后续计划 -->
+  <div class="slide content" id="slide-11">
+    <h2>后续计划</h2>
+    <table>
+      <tr><th>时间</th><th>任务</th><th>优先级</th></tr>
+      <tr><td>第11周</td><td>部署到Vercel/Render，获取公网地址</td><td><span class="tag tag-done">P0</span></td></tr>
+      <tr><td>第11周</td><td>录制3分钟演示视频</td><td><span class="tag tag-done">P0</span></td></tr>
+      <tr><td>第12周</td><td>撰写项目总结报告</td><td><span class="tag tag-done">P0</span></td></tr>
+      <tr><td>第12周</td><td>课堂汇报演示</td><td><span class="tag tag-done">P0</span></td></tr>
+      <tr><td>后续</td><td>遗忘曲线功能增强</td><td><span class="tag tag-plan">P1</span></td></tr>
+    </table>
+    <h3 style="margin-top: 30px;">期末目标</h3>
+    <ul>
+      <li>完整可运行的考研助手应用</li>
+      <li>公网部署，支持手机访问</li>
+      <li>三层意图识别准确率 >90%</li>
+      <li>长期记忆跨会话有效</li>
+    </ul>
+  </div>
+
+  <!-- 第12页：结尾 -->
+  <div class="slide cover" id="slide-12">
+    <h1>谢谢</h1>
+    <p class="subtitle">考研小管家 · 项目中期汇报</p>
+    <div class="info">
+      <p>项目完成度：92%</p>
+      <p>核心功能：意图识别 · 长期记忆 · 计划生成 · 知识问答 · 情绪关怀</p>
+    </div>
+  </div>
+
+  <!-- 导航按钮 -->
+  <div class="nav">
+    <button onclick="prevSlide()">←</button>
+    <button onclick="nextSlide()">→</button>
+  </div>
+  <div class="page-number" id="pageNum">1 / 12</div>
+
+  <script>
+    let currentSlide = 1;
+    const totalSlides = 12;
+
+    function showSlide(n) {
+      document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+      document.getElementById(`slide-${n}`).classList.add('active');
+      document.getElementById('pageNum').textContent = `${n} / ${totalSlides}`;
+      currentSlide = n;
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides) showSlide(currentSlide + 1);
+    }
+
+    function prevSlide() {
+      if (currentSlide > 1) showSlide(currentSlide - 1);
+    }
+
+    // 键盘控制
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        nextSlide();
+      }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        prevSlide();
+      }
+    });
+  </script>
+</body>
+</html>

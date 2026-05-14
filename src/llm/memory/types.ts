@@ -61,10 +61,25 @@ export interface DailyPlan {
   createdAt: number;
 }
 
+// 错题记录
+export interface MistakeRecord {
+  id: string;              // 唯一ID（时间戳）
+  date: string;            // 日期 YYYY-MM-DD
+  subject: string;         // 科目：高数/线代/概率/英语/政治 等
+  question: string;        // 错题内容
+  userAnswer: string;      // 用户的错误答案
+  correctAnswer: string;   // 正确答案
+  errorType: string;       // 错误类型：概念混淆/计算失误/方法错误/审题不清
+  notes?: string;          // 补充说明
+  analysis?: string;       // LLM生成的分析
+  createdAt: number;
+}
+
 // 记忆存储键名
 export const MEMORY_KEYS = {
   PROFILE: 'kaoyan-profile',
   STUDY_RECORDS: 'kaoyan-study-records',
   PLANS: 'kaoyan-plans',
   CHAT_HISTORY: 'kaoyan-chat-history',
+  MISTAKES: 'kaoyan-mistakes',
 } as const;

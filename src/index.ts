@@ -10,11 +10,13 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createDeepSeekClient, DeepSeekClient } from './llm/deepseek.js';
+import { createZhipuClient, ZhipuClient } from './llm/zhipu.js';
 import { processIntent } from './llm/intent/index.js';
 import { handlePlanIntent } from './llm/plan.js';
 import { handleQaIntent } from './llm/qa.js';
 import { handleReviewIntent } from './llm/review.js';
 import { handleEmotionIntent } from './llm/emotion.js';
+import { handleMistakeIntent } from './llm/mistake.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,7 +34,9 @@ const clients = new Map<string, WebSocket>();
 
 // LLM客户端
 const deepSeekClient: DeepSeekClient = createDeepSeekClient();
+const zhipuClient: ZhipuClient = createZhipuClient();
 const llmAvailable = deepSeekClient.isAvailable();
+const visionAvailable = zhipuClient.isAvailable();
 
 interface Message {
   type: 'chat' | 'ping' | 'pong';
@@ -43,6 +47,8 @@ interface Message {
   memoryContext?: string;  // 前端传来的记忆上下文
   plansJson?: string;      // 前端传来的现有计划数据
   planData?: any;          // 返回给前端的结构化计划数据
+  mistakeData?: any;       // 返回给前端的结构化错题数据
+  imageBase64?: string;    // 前端传来的图片 base64
 }
 
 wss.on('connection', (ws: WebSocket) => {
@@ -91,7 +97,7 @@ async function handleMessage(ws: WebSocket, message: Message, connectionId: stri
 
   switch (message.type) {
     case 'chat':
-      if (!message.text) {
+      if (!message.text && !message.imageBase64) {
         sendMessage(ws, {
           type: 'chat',
           text: '消息内容不能为空',
@@ -100,8 +106,65 @@ async function handleMessage(ws: WebSocket, message: Message, connectionId: stri
         return;
       }
 
+      // 图片消息：先识别意图，再用多模态识别图片
+      const text = message.text || '';
+      let imageResult: string | null = null;
+
+      if (message.imageBase64) {
+        const imgPrompt = text || '请识别图片中的数学公式或题目内容，用文字描述清楚，如果包含公式请用LaTeX格式（$...$）表示。';
+        if (visionAvailable) {
+          console.log(`[图片] 收到图片消息，使用智谱GLM-4V识别...`);
+          try {
+            imageResult = await zhipuClient.imageChat(imgPrompt, message.imageBase64, message.memoryContext);
+            console.log('[图片] 识别完成');
+          } catch (error) {
+            console.error('[图片] 识别失败:', error);
+            sendMessage(ws, { type: 'chat', text: '图片识别失败，请重试或直接文字描述。', timestamp: Date.now() });
+            return;
+          }
+        } else {
+          sendMessage(ws, { type: 'chat', text: '图片识别需要配置智谱API Key（ZHIPU_API_KEY），请在环境变量中设置后重启服务。当前请直接用文字描述题目内容。', timestamp: Date.now() });
+          return;
+        }
+      }
+
       // 三层意图识别
-      const result = await processIntent(message.text, deepSeekClient);
+      const result = await processIntent(text || (imageResult ? '帮我记录这道错题' : ''), deepSeekClient);
+
+      // 如果有图片且意图是错题记录，用图片识别结果作为分析保存
+      if (imageResult && result.intent?.subIntent?.startsWith('review_mistake')) {
+        const today = new Date().toISOString().split('T')[0];
+        const mistakeData = {
+          id: Date.now().toString(),
+          date: today,
+          subject: result.intent.extractedData?.subject || '数学',
+          question: result.intent.extractedData?.question || text || imageResult.substring(0, 200),
+          userAnswer: result.intent.extractedData?.userAnswer || '',
+          correctAnswer: result.intent.extractedData?.correctAnswer || '',
+          errorType: result.intent.extractedData?.errorType || '未分类',
+          analysis: imageResult,
+        };
+        sendMessage(ws, {
+          type: 'chat',
+          text: imageResult,
+          timestamp: Date.now(),
+          intent: result.intent.subIntent,
+          mistakeData,
+        });
+        console.log('[图片+错题] 识别完成并已保存到错题本');
+        return;
+      }
+
+      // 有图片但不是错题意图，直接返回识别结果
+      if (imageResult) {
+        sendMessage(ws, {
+          type: 'chat',
+          text: imageResult,
+          timestamp: Date.now(),
+          intent: 'image_recognize',
+        });
+        return;
+      }
 
       // 第一层命中：直接返回预设回复
       if (result.handled && result.response) {
@@ -124,7 +187,7 @@ async function handleMessage(ws: WebSocket, message: Message, connectionId: stri
           if (subIntent.startsWith('plan_') && result.intent) {
             console.log(`[计划] 处理意图: ${subIntent}`);
             const planResult = await handlePlanIntent(
-              message.text, result.intent, deepSeekClient, message.plansJson
+              text, result.intent, deepSeekClient, message.plansJson
             );
             sendMessage(ws, {
               type: 'chat',
@@ -138,7 +201,7 @@ async function handleMessage(ws: WebSocket, message: Message, connectionId: stri
             // 知识问答：路由到专用QA处理器
             console.log(`[QA] 处理意图: ${subIntent}`);
             const qaResult = await handleQaIntent(
-              message.text, result.intent, deepSeekClient, message.memoryContext
+              text, result.intent, deepSeekClient, message.memoryContext
             );
             sendMessage(ws, {
               type: 'chat',
@@ -147,11 +210,25 @@ async function handleMessage(ws: WebSocket, message: Message, connectionId: stri
               intent: subIntent,
             });
             console.log('[QA] 响应已发送');
+          } else if (subIntent.startsWith('review_mistake') && result.intent) {
+            // 错题本：路由到专用mistake处理器
+            console.log(`[错题本] 处理意图: ${subIntent}`);
+            const mistakeResult = await handleMistakeIntent(
+              text, result.intent, deepSeekClient, message.memoryContext
+            );
+            sendMessage(ws, {
+              type: 'chat',
+              text: mistakeResult.text,
+              timestamp: Date.now(),
+              intent: subIntent,
+              mistakeData: mistakeResult.mistakeData,
+            });
+            console.log('[错题本] 响应已发送');
           } else if (subIntent.startsWith('review_') && result.intent) {
             // 复习提醒：路由到专用review处理器
             console.log(`[Review] 处理意图: ${subIntent}`);
             const reviewResult = await handleReviewIntent(
-              message.text, result.intent, deepSeekClient, message.memoryContext
+              text, result.intent, deepSeekClient, message.memoryContext
             );
             sendMessage(ws, {
               type: 'chat',
@@ -164,7 +241,7 @@ async function handleMessage(ws: WebSocket, message: Message, connectionId: stri
             // 情绪关怀：路由到专用emotion处理器
             console.log(`[Emotion] 处理意图: ${subIntent}`);
             const emotionResult = await handleEmotionIntent(
-              message.text, result.intent, deepSeekClient, message.memoryContext
+              text, result.intent, deepSeekClient, message.memoryContext
             );
             sendMessage(ws, {
               type: 'chat',
@@ -176,7 +253,7 @@ async function handleMessage(ws: WebSocket, message: Message, connectionId: stri
           } else {
             // 其他意图：通用LLM回复
             console.log(`[LLM] 正在调用... 意图: ${subIntent}`);
-            const response = await deepSeekClient.simpleChat(message.text, message.memoryContext);
+            const response = await deepSeekClient.simpleChat(text, message.memoryContext);
             sendMessage(ws, {
               type: 'chat',
               text: response,

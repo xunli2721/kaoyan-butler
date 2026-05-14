@@ -17,7 +17,7 @@ export class DeepSeekClient implements LLMClient {
   private loadConfig(): LLMConfig {
     return {
       provider: 'deepseek',
-      model: 'deepseek-chat',
+      model: 'deepseek-v4-flash',
     };
   }
 
@@ -81,6 +81,64 @@ export class DeepSeekClient implements LLMClient {
     return response.content;
   }
 
+  /**
+   * 多模态对话：支持图片+文本
+   */
+  async imageChat(message: string, imageBase64: string, memoryContext?: string): Promise<string> {
+    if (!this.apiKey) {
+      return 'DeepSeek API Key未配置，请设置环境变量DEEPSEEK_API_KEY';
+    }
+
+    const contextPrefix = memoryContext ? `【记忆上下文】\n${memoryContext}\n\n` : '';
+    const fullPrompt = `${contextPrefix}${message}`;
+
+    const content: any[] = [
+      { type: 'text', text: fullPrompt },
+      { type: 'image_url', image_url: { url: imageBase64 } },
+    ];
+
+    try {
+      const response = await this.callMultimodalAPI(content);
+      return response;
+    } catch (error: any) {
+      console.error('[DeepSeek] 图片识别失败:', error);
+      return '图片识别暂不可用：DeepSeek API 目前不支持图片识别功能。请直接用文字描述题目内容，我可以帮你解答。';
+    }
+  }
+
+  private async callMultimodalAPI(content: any[]): Promise<string> {
+    const url = 'https://api.deepseek.com/v1/chat/completions';
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.config.model || 'deepseek-v4-flash',
+          messages: [{ role: 'user', content }],
+          temperature: 0.7,
+          max_tokens: 2048,
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API请求失败: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json() as any;
+      return data.choices[0].message.content;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   private async callDeepSeekAPI(prompt: string): Promise<string> {
     const url = 'https://api.deepseek.com/v1/chat/completions';
 
@@ -95,7 +153,7 @@ export class DeepSeekClient implements LLMClient {
           'Authorization': `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: this.config.model || 'deepseek-chat',
+          model: this.config.model || 'deepseek-v4-flash',
           messages: [
             {
               role: 'user',
