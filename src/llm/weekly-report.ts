@@ -67,7 +67,7 @@ export async function handleWeeklyReportIntent(
   const prompt = `${WEEKLY_REPORT_PROMPT}\n\n【用户请求】${message}${extraContext}`;
 
   try {
-    const response = await client.simpleChat(prompt, memoryContext);
+    const response = await client.simpleChat(prompt, memoryContext, 120000);
     return { text: response };
   } catch (error: any) {
     console.error('[周报] 生成失败:', error);

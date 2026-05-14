@@ -39,7 +39,7 @@ export class DeepSeekClient implements LLMClient {
     return this.apiKey !== null;
   }
 
-  async chat(request: LLMRequest): Promise<LLMResponse> {
+  async chat(request: LLMRequest, timeoutMs?: number): Promise<LLMResponse> {
     if (!this.apiKey) {
       return {
         content: 'DeepSeek API Key未配置，请设置环境变量DEEPSEEK_API_KEY',
@@ -55,7 +55,7 @@ export class DeepSeekClient implements LLMClient {
         request.context
       );
 
-      const response = await this.callDeepSeekAPI(prompt);
+      const response = await this.callDeepSeekAPI(prompt, timeoutMs);
 
       return {
         content: response,
@@ -73,11 +73,11 @@ export class DeepSeekClient implements LLMClient {
     }
   }
 
-  async simpleChat(message: string, memoryContext?: string): Promise<string> {
+  async simpleChat(message: string, memoryContext?: string, timeoutMs?: number): Promise<string> {
     const response = await this.chat({
       messages: [{ role: 'user', content: message }],
       context: memoryContext ? { memoryContext } : undefined,
-    });
+    }, timeoutMs);
     return response.content;
   }
 
@@ -139,11 +139,11 @@ export class DeepSeekClient implements LLMClient {
     }
   }
 
-  private async callDeepSeekAPI(prompt: string): Promise<string> {
+  private async callDeepSeekAPI(prompt: string, timeoutMs?: number): Promise<string> {
     const url = 'https://api.deepseek.com/v1/chat/completions';
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs || 30000);
 
     try {
       const response = await fetch(url, {
