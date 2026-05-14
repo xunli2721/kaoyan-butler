@@ -25,6 +25,7 @@ const INTENT_PROMPT = `你是"考研小管家"的意图识别模块。请分析�
 | study | study_log | 记录今日学习 | "今天学了3小时高数"、"背了200个单词" |
 | study | study_query | 查询学习进度 | "这周数学学了多少？"、"今天学了多久" |
 | study | study_break | 休息记录 | "休息20分钟"、"休息一下" |
+| study | study_focus | 番茄钟专注记录 | "刚完成一个番茄钟"、"专注了25分钟数学" |
 | plan | plan_create | 制定复习计划 | "帮我安排明天的复习"、"制定一个英语计划" |
 | plan | plan_query | 查看计划 | "明天有什么安排？"、"今天的计划" |
 | plan | plan_modify | 修改计划 | "把数学改到后天"、"今天加一小时政治" |
@@ -38,6 +39,7 @@ const INTENT_PROMPT = `你是"考研小管家"的意图识别模块。请分析�
 | review | review_mistake | 记录错题 | "记录一道高数错题"、"我这道积分题做错了，答案是x³+C" |
 | review | review_mistake_query | 查看错题 | "看看我的错题"、"高数有哪些错题" |
 | review | review_mistake_review | 错题分析 | "分析我的错题模式"、"错题有什么规律" |
+| review | review_weekly | 每周学习报告 | "周报"、"本周学习总结"、"这周学了什么"、"学习报告" |
 | chat | chat_greeting | 问候 | "你好"（较长的问候） |
 | chat | chat_chat | 闲聊/倾诉 | "考研好累啊"、"今天状态不错" |
 | chat | chat_comfort | 焦虑安抚 | "感觉来不及了"、"考不上怎么办" |
@@ -60,7 +62,8 @@ const INTENT_PROMPT = `你是"考研小管家"的意图识别模块。请分析�
     "question": "错题内容（仅review_mistake）",
     "userAnswer": "用户的错误答案（仅review_mistake）",
     "correctAnswer": "正确答案（仅review_mistake）",
-    "errorType": "错误类型：概念混淆/计算失误/方法错误/审题不清（仅review_mistake）"
+    "errorType": "错误类型：概念混淆/计算失误/方法错误/审题不清（仅review_mistake）",
+    "focusDuration": "番茄钟专注时长分钟数（仅study_focus）"
   }
 }
 

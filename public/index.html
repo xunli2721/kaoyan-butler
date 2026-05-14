@@ -517,6 +517,60 @@
     .messages::-webkit-scrollbar { width: 4px; }
     .messages::-webkit-scrollbar-thumb { background: rgba(44,36,23,0.1); border-radius: 2px; }
 
+    /* Pomodoro Timer */
+    .pomodoro-card {
+      background: var(--surface); border-radius: var(--radius); padding: 20px;
+      margin-bottom: 12px; box-shadow: var(--shadow-sm); text-align: center;
+      border: 1px solid rgba(44,36,23,0.06);
+    }
+    .pomodoro-ring {
+      position: relative; width: 160px; height: 160px; margin: 12px auto;
+    }
+    .pomodoro-ring svg { transform: rotate(-90deg); }
+    .pomodoro-ring-bg { fill: none; stroke: var(--surface-alt); stroke-width: 6; }
+    .pomodoro-ring-fill {
+      fill: none; stroke: var(--accent); stroke-width: 6;
+      stroke-linecap: round; transition: stroke-dashoffset 0.5s ease, stroke 0.3s;
+    }
+    .pomodoro-ring-fill.break { stroke: var(--green); }
+    .pomodoro-time {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      font-size: 36px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums;
+    }
+    .pomodoro-phase {
+      font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;
+    }
+    .pomodoro-subject-select {
+      display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 10px 0;
+    }
+    .pomodoro-subject-btn {
+      padding: 4px 12px; border-radius: 14px; border: 1px solid rgba(44,36,23,0.12);
+      background: transparent; font-size: 12px; cursor: pointer; transition: all 0.2s;
+      color: var(--text-secondary); font-family: inherit;
+    }
+    .pomodoro-subject-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .pomodoro-subject-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+    .pomodoro-controls { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+    .pomodoro-btn {
+      padding: 8px 20px; border-radius: 20px; border: none; font-size: 13px;
+      cursor: pointer; transition: all 0.2s; font-family: inherit; font-weight: 600;
+    }
+    .pomodoro-btn-primary {
+      background: var(--accent-gradient); color: white; box-shadow: var(--shadow-sm);
+    }
+    .pomodoro-btn-primary:hover { transform: scale(1.03); box-shadow: var(--shadow-md); }
+    .pomodoro-btn-secondary {
+      background: var(--surface-alt); color: var(--text-secondary);
+    }
+    .pomodoro-btn-secondary:hover { background: rgba(44,36,23,0.08); }
+    .pomodoro-today-stats {
+      display: flex; gap: 12px; justify-content: center; margin-top: 12px;
+      padding-top: 10px; border-top: 1px solid rgba(44,36,23,0.06);
+    }
+    .pomodoro-today-item { text-align: center; }
+    .pomodoro-today-value { font-size: 18px; font-weight: 700; color: var(--accent); }
+    .pomodoro-today-label { font-size: 10px; color: var(--text-tertiary); }
+
     /* Mobile */
     @media (max-width: 768px) {
       .container { max-width: none; }
@@ -558,6 +612,7 @@
         <div class="quick-actions">
           <span class="quick-chip" onclick="quickSend('帮我安排今天的复习')">📋 今日计划</span>
           <span class="quick-chip" onclick="quickSend('根据我们之前的聊天记录和我的学习数据，帮我分析一下各科的薄弱点')">🔍 薄弱分析</span>
+          <span class="quick-chip" id="pomodoroChip" onclick="togglePomodoroFromChip()">🍅 开始专注</span>
         </div>
         <div class="image-preview-bar" id="imagePreviewBar" style="display:none">
           <img id="imagePreviewThumb" src="" alt="预览">
@@ -579,6 +634,7 @@
           <button class="sidebar-tab active" data-tab="plan" onclick="switchSidebarTab('plan')">📋 今日计划</button>
           <button class="sidebar-tab" data-tab="stats" onclick="switchSidebarTab('stats')">📊 学习统计</button>
           <button class="sidebar-tab" data-tab="mistakes" onclick="switchSidebarTab('mistakes')">📕 错题本</button>
+          <button class="sidebar-tab" data-tab="weeklyReport" onclick="switchSidebarTab('weeklyReport')">📈 周报</button>
         </div>
         <div class="sidebar-content" id="sidebarPlan">
           <div id="planContent"></div>
@@ -598,6 +654,9 @@
         <div class="sidebar-content" id="sidebarMistakes" style="display:none;">
           <div id="mistakesContent"></div>
         </div>
+        <div class="sidebar-content" id="sidebarWeeklyReport" style="display:none;">
+          <div id="weeklyReportContent"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -612,6 +671,7 @@
       <button class="sidebar-tab active" data-tab="plan" onclick="switchOverlayTab('plan')">📋 今日计划</button>
       <button class="sidebar-tab" data-tab="stats" onclick="switchOverlayTab('stats')">📊 学习统计</button>
       <button class="sidebar-tab" data-tab="mistakes" onclick="switchOverlayTab('mistakes')">📕 错题本</button>
+      <button class="sidebar-tab" data-tab="weeklyReport" onclick="switchOverlayTab('weeklyReport')">📈 周报</button>
     </div>
     <div class="sidebar-content" id="overlayPlan" style="flex:1;overflow-y:auto;padding:12px;">
       <div id="overlayPlanContent"></div>
@@ -621,6 +681,9 @@
     </div>
     <div class="sidebar-content" id="overlayMistakes" style="display:none;flex:1;overflow-y:auto;padding:12px;">
       <div id="overlayMistakesContent"></div>
+    </div>
+    <div class="sidebar-content" id="overlayWeeklyReport" style="display:none;flex:1;overflow-y:auto;padding:12px;">
+      <div id="overlayWeeklyReportContent"></div>
     </div>
   </div>
 
@@ -943,6 +1006,7 @@
       html += '</div></div>';
 
       content.innerHTML = html;
+      renderPomodoroCard(targetId);
 
       if (typeof Chart !== 'undefined' && hasData) {
         renderTrendLineChart(targetId?'overlayTrend':'trendChart');
@@ -974,15 +1038,282 @@
       if (canvasId==='subjectChart') statsPieChart = chart;
     }
 
+    // ==================== 番茄钟专注计时 ====================
+    const POMODORO_KEY = 'kaoyan-pomodoro-state';
+    const FOCUS_MIN = 25, BREAK_MIN = 5;
+    const CIRCUMFERENCE = 2 * Math.PI * 70; // r=70 for the SVG ring
+
+    let pomodoro = loadPomodoroState();
+
+    function loadPomodoroState() {
+      try {
+        const s = JSON.parse(localStorage.getItem(POMODORO_KEY) || 'null');
+        const defaults = { phase: 'idle', secondsLeft: 0, subject: '数学', totalToday: 0, minutesToday: 0, endTime: null };
+        if (!s) return defaults;
+        if (s.phase !== 'idle' && s.endTime) {
+          const remaining = Math.max(0, Math.ceil((s.endTime - Date.now()) / 1000));
+          if (remaining <= 0) {
+            if (s.phase === 'focus') { s.phase = 'break'; s.secondsLeft = BREAK_MIN * 60; s.endTime = null; }
+            else { s.phase = 'idle'; s.secondsLeft = 0; s.endTime = null; }
+          } else {
+            s.secondsLeft = remaining;
+          }
+        }
+        return { ...defaults, ...s };
+      } catch { return { phase: 'idle', secondsLeft: 0, subject: '数学', totalToday: 0, minutesToday: 0, endTime: null }; }
+    }
+
+    function savePomodoroState() {
+      localStorage.setItem(POMODORO_KEY, JSON.stringify(pomodoro));
+    }
+
+    function getTodayFocusStats() {
+      const records = getStudyRecords();
+      const today = new Date().toISOString().split('T')[0];
+      const focusRecords = records.filter(r => r.date === today && r.content === '番茄钟专注');
+      return {
+        count: focusRecords.length,
+        minutes: focusRecords.reduce((s, r) => s + r.duration, 0)
+      };
+    }
+
+    function formatPomodoroTime(sec) {
+      const m = Math.floor(sec / 60), s = sec % 60;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    let pomodoroInterval = null;
+
+    function renderPomodoroCard(targetId) {
+      const container = document.getElementById(targetId || 'statsContent');
+      if (!container) return;
+      // Refresh today stats from actual records
+      const todayStats = getTodayFocusStats();
+      pomodoro.totalToday = todayStats.count;
+      pomodoro.minutesToday = todayStats.minutes;
+
+      const totalSec = pomodoro.phase === 'break' ? BREAK_MIN * 60 : FOCUS_MIN * 60;
+      const progress = pomodoro.phase === 'idle' ? 0 : (totalSec - pomodoro.secondsLeft) / totalSec;
+      const offset = CIRCUMFERENCE * (1 - progress);
+      const ringClass = pomodoro.phase === 'break' ? 'pomodoro-ring-fill break' : 'pomodoro-ring-fill';
+      const phaseLabel = pomodoro.phase === 'focus' ? '🍅 专注中' : pomodoro.phase === 'break' ? '☕ 休息中' : '准备开始';
+
+      const subjects = ['数学', '英语', '政治', '专业课'];
+      let subjectBtns = '';
+      subjects.forEach(s => {
+        const cls = pomodoro.subject === s ? 'pomodoro-subject-btn active' : 'pomodoro-subject-btn';
+        subjectBtns += `<button class="${cls}" onclick="selectPomodoroSubject('${s}')">${s}</button>`;
+      });
+
+      let controls = '';
+      if (pomodoro.phase === 'idle') {
+        controls = `<button class="pomodoro-btn pomodoro-btn-primary" onclick="startPomodoro()">开始专注</button>`;
+      } else if (pomodoro.phase === 'focus' || pomodoro.phase === 'break') {
+        const pauseLabel = pomodoroInterval ? '暂停' : '继续';
+        controls = `<button class="pomodoro-btn pomodoro-btn-secondary" onclick="pausePomodoro()" id="pomodoroPauseBtn">${pauseLabel}</button>`;
+        controls += `<button class="pomodoro-btn pomodoro-btn-secondary" onclick="resetPomodoro()">重置</button>`;
+      }
+
+      const html = `
+        <div class="pomodoro-card">
+          <div class="pomodoro-phase">${phaseLabel}</div>
+          <div class="pomodoro-ring">
+            <svg width="160" height="160" viewBox="0 0 160 160">
+              <circle class="pomodoro-ring-bg" cx="80" cy="80" r="70"/>
+              <circle class="${ringClass}" cx="80" cy="80" r="70"
+                stroke-dasharray="${CIRCUMFERENCE}"
+                stroke-dashoffset="${pomodoro.phase === 'idle' ? CIRCUMFERENCE : offset}"/>
+            </svg>
+            <div class="pomodoro-time">${pomodoro.phase === 'idle' ? formatPomodoroTime(FOCUS_MIN * 60) : formatPomodoroTime(pomodoro.secondsLeft)}</div>
+          </div>
+          <div class="pomodoro-subject-select">${subjectBtns}</div>
+          <div class="pomodoro-controls">${controls}</div>
+          <div class="pomodoro-today-stats">
+            <div class="pomodoro-today-item">
+              <div class="pomodoro-today-value">${pomodoro.totalToday}</div>
+              <div class="pomodoro-today-label">今日次数</div>
+            </div>
+            <div class="pomodoro-today-item">
+              <div class="pomodoro-today-value">${Math.round(pomodoro.minutesToday / 60 * 10) / 10}</div>
+              <div class="pomodoro-today-label">专注(h)</div>
+            </div>
+          </div>
+        </div>`;
+      // Insert at the top of stats content
+      const existing = container.querySelector('.pomodoro-card');
+      if (existing) existing.parentElement.removeChild(existing);
+      container.insertAdjacentHTML('afterbegin', html);
+    }
+
+    function selectPomodoroSubject(subject) {
+      pomodoro.subject = subject;
+      savePomodoroState();
+      renderPomodoroCard();
+      renderStatsPanel(); // re-render to update overlay too
+    }
+
+    function startPomodoro() {
+      if (pomodoro.phase !== 'idle') return;
+      pomodoro.phase = 'focus';
+      pomodoro.secondsLeft = FOCUS_MIN * 60;
+      pomodoro.endTime = Date.now() + FOCUS_MIN * 60 * 1000;
+      savePomodoroState();
+      renderPomodoroCard();
+      updatePomodoroChip();
+      runPomodoroTick();
+    }
+
+    function runPomodoroTick() {
+      clearInterval(pomodoroInterval);
+      // 预计算结束时间戳，不受浏览器节流影响
+      if (!pomodoro.endTime) {
+        pomodoro.endTime = Date.now() + pomodoro.secondsLeft * 1000;
+        savePomodoroState();
+      }
+      pomodoroInterval = setInterval(() => {
+        const remaining = Math.max(0, Math.ceil((pomodoro.endTime - Date.now()) / 1000));
+        if (remaining !== pomodoro.secondsLeft) {
+          pomodoro.secondsLeft = remaining;
+          savePomodoroState();
+          renderPomodoroCard();
+        }
+        if (remaining <= 0) {
+          clearInterval(pomodoroInterval);
+          pomodoro.endTime = null;
+          savePomodoroState();
+          if (pomodoro.phase === 'focus') {
+            finishFocusPhase();
+          } else if (pomodoro.phase === 'break') {
+            finishBreakPhase();
+          }
+        }
+      }, 200);
+    }
+
+    function pausePomodoro() {
+      if (pomodoro.phase === 'idle') return;
+      const btn = document.getElementById('pomodoroPauseBtn');
+      if (pomodoroInterval) {
+        // Currently running → pause: save remaining time, clear endTime
+        clearInterval(pomodoroInterval);
+        pomodoroInterval = null;
+        pomodoro.secondsLeft = Math.max(0, Math.ceil((pomodoro.endTime - Date.now()) / 1000));
+        pomodoro.endTime = null;
+        savePomodoroState();
+        renderPomodoroCard();
+        if (btn) btn.textContent = '继续';
+      } else {
+        // Currently paused → resume: set new endTime
+        pomodoro.endTime = Date.now() + pomodoro.secondsLeft * 1000;
+        savePomodoroState();
+        runPomodoroTick();
+        if (btn) btn.textContent = '暂停';
+      }
+    }
+
+    function resetPomodoro() {
+      clearInterval(pomodoroInterval);
+      pomodoroInterval = null;
+      pomodoro.phase = 'idle';
+      pomodoro.secondsLeft = 0;
+      savePomodoroState();
+      renderPomodoroCard();
+      updatePomodoroChip();
+    }
+
+    function finishFocusPhase() {
+      playPomodoroBeep();
+      // Record the focus session
+      const today = new Date().toISOString().split('T')[0];
+      addStudyRecord({ date: today, subject: pomodoro.subject, duration: FOCUS_MIN, content: '番茄钟专注', completed: true });
+      pomodoro.totalToday++;
+      pomodoro.minutesToday += FOCUS_MIN;
+
+      // Auto-start break
+      pomodoro.phase = 'break';
+      pomodoro.secondsLeft = BREAK_MIN * 60;
+      pomodoro.endTime = Date.now() + BREAK_MIN * 60 * 1000;
+      savePomodoroState();
+      renderPomodoroCard();
+      renderStatsPanel();
+      updatePomodoroChip();
+      runPomodoroTick();
+
+      // Send focus completion message via WebSocket
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        const focusMsg = `刚完成一个番茄钟，专注了${FOCUS_MIN}分钟${pomodoro.subject}`;
+        addMessage(focusMsg, 'user', true);
+        showTyping();
+        const payload = { type: 'chat', text: focusMsg, deviceId, timestamp: Date.now(), memoryContext: getMemoryContext(), plansJson: getPlansJson() };
+        ws.send(JSON.stringify(payload));
+      }
+    }
+
+    function finishBreakPhase() {
+      playPomodoroBeep();
+      pomodoro.phase = 'idle';
+      pomodoro.secondsLeft = 0;
+      savePomodoroState();
+      renderPomodoroCard();
+      updatePomodoroChip();
+      addMessage('休息结束，准备开始下一个番茄钟吧！🍅', 'assistant', true);
+    }
+
+    function playPomodoroBeep() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.2);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.2 + 0.4);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime + i * 0.2);
+          osc.stop(ctx.currentTime + i * 0.2 + 0.5);
+        });
+      } catch (e) { /* Audio not available */ }
+    }
+
+    function togglePomodoroFromChip() {
+      if (pomodoro.phase === 'idle') {
+        switchSidebarTab('stats');
+        setTimeout(() => startPomodoro(), 100);
+      } else {
+        resetPomodoro();
+      }
+    }
+
+    function updatePomodoroChip() {
+      const chip = document.getElementById('pomodoroChip');
+      if (!chip) return;
+      if (pomodoro.phase === 'idle') {
+        chip.textContent = '🍅 开始专注';
+      } else {
+        chip.textContent = '🍅 结束专注';
+      }
+    }
+
+    // Resume pomodoro on page load if it was running
+    if (pomodoro.phase !== 'idle' && pomodoro.secondsLeft > 0) {
+      runPomodoroTick();
+      updatePomodoroChip();
+    }
+
     // ==================== Sidebar tab switching ====================
     function switchSidebarTab(tab) {
       document.querySelectorAll('.sidebar-tabs .sidebar-tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
       document.getElementById('sidebarPlan').style.display = tab==='plan'?'':'none';
       document.getElementById('sidebarStats').style.display = tab==='stats'?'':'none';
       document.getElementById('sidebarMistakes').style.display = tab==='mistakes'?'':'none';
+      document.getElementById('sidebarWeeklyReport').style.display = tab==='weeklyReport'?'':'none';
       if (tab==='plan') { renderPlanPanel(); renderHistoryPlan(); }
       if (tab==='stats') renderStatsPanel();
       if (tab==='mistakes') renderMistakesPanel();
+      if (tab==='weeklyReport') renderWeeklyReportPanel();
     }
 
     // ==================== Mobile overlay ====================
@@ -999,8 +1330,10 @@
       document.getElementById('overlayPlan').style.display = tab==='plan'?'':'none';
       document.getElementById('overlayStats').style.display = tab==='stats'?'':'none';
       document.getElementById('overlayMistakes').style.display = tab==='mistakes'?'':'none';
+      document.getElementById('overlayWeeklyReport').style.display = tab==='weeklyReport'?'':'none';
       if (tab==='stats') renderStatsPanel('overlayStatsContent');
       if (tab==='mistakes') renderMistakesPanel('overlayMistakesContent');
+      if (tab==='weeklyReport') renderWeeklyReportPanel('overlayWeeklyReportContent');
     }
 
     // ==================== 记忆上下文 ====================
@@ -1135,6 +1468,52 @@
       }
 
       content.innerHTML = html;
+    }
+
+    // ==================== 周报面板 ====================
+    let weeklyReportCache = null;
+    let weeklyReportLoading = false;
+
+    function getWeeklyRecordsJson() {
+      const records = getStudyRecords();
+      const now = new Date();
+      const weekAgo = new Date(now);
+      weekAgo.setDate(now.getDate() - 7);
+      const weekAgoStr = weekAgo.toISOString().split('T')[0];
+      const weekly = records.filter(r => r.date >= weekAgoStr);
+      return JSON.stringify(weekly, null, 2);
+    }
+
+    function renderWeeklyReportPanel(targetId) {
+      const content = document.getElementById(targetId || 'weeklyReportContent');
+      if (!content) return;
+
+      if (weeklyReportCache) {
+        content.innerHTML = `<div class="stat-card"><div class="stat-card-title">📈 每周学习报告</div><div style="font-size:13px;line-height:1.8">${renderContent(weeklyReportCache)}</div></div>`;
+        return;
+      }
+
+      if (weeklyReportLoading) {
+        content.innerHTML = '<div class="stat-card"><div style="text-align:center;padding:30px;color:var(--text-tertiary,#aaa)"><div style="font-size:24px;margin-bottom:8px">⏳</div>正在生成周报...</div></div>';
+        return;
+      }
+
+      content.innerHTML = '<div class="stat-card"><div style="text-align:center;padding:20px"><button onclick="requestWeeklyReport()" style="padding:10px 24px;border:none;border-radius:8px;background:var(--accent,#4a7dff);color:#fff;font-size:14px;cursor:pointer">📊 生成本周学习报告</button><div style="font-size:12px;color:var(--text-tertiary,#aaa);margin-top:8px">基于你最近7天的学习记录生成</div></div></div>';
+    }
+
+    function requestWeeklyReport() {
+      if (weeklyReportLoading) return;
+      weeklyReportLoading = true;
+      renderWeeklyReportPanel();
+
+      const text = '生成每周学习报告';
+      const payload = {
+        type: 'chat', text, deviceId, timestamp: Date.now(),
+        memoryContext: getMemoryContext(),
+        plansJson: getPlansJson(),
+        weeklyRecordsJson: getWeeklyRecordsJson()
+      };
+      ws.send(JSON.stringify(payload));
     }
 
     function toggleMistakeDetail(el) {
@@ -1279,6 +1658,7 @@
             hideTyping(); addMessage(message.text, 'assistant', true);
             try { if (message.planData?.items) { savePlan(message.planData); renderPlanPanel(); renderHistoryPlan(); } } catch(e) { console.error('[Plan] save error:', e); }
             try { if (message.mistakeData) { addMistake(message.mistakeData); renderMistakesPanel(); } } catch(e) { console.error('[Mistake] save error:', e); }
+            try { if (message.intent === 'review_weekly') { weeklyReportCache = message.text; weeklyReportLoading = false; renderWeeklyReportPanel(); } } catch(e) { console.error('[周报] render error:', e); }
           }
         } catch(e) { console.error('[WS] message error:', e); hideTyping(); }
       };

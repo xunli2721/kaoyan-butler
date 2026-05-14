@@ -54,6 +54,13 @@ const REGEX_RULES: RegexRule[] = [
     response: '好的，有需要随时找我~',
     exact: true,
   },
+  // 每周学习报告
+  {
+    type: 'weekly_report',
+    keywords: ['周报', '周总结', '每周报告', '学习报告', '本周总结'],
+    response: '正在为你生成每周学习报告，请稍候...',
+    exact: true,
+  },
 ];
 
 /**

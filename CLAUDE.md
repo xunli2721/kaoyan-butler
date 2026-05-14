@@ -34,35 +34,36 @@ User message (WebSocket JSON)
   → If imageBase64 present: zhipuClient.imageChat() for OCR/recognition
   → processIntent() — 3-layer cascade
     Layer 1: regex.ts — zero-cost keyword match (greetings, thanks, farewells)
-    Layer 2: ai.ts — DeepSeek classifies into ~21 sub-intents, extracts structured data
+    Layer 2: ai.ts — DeepSeek classifies into ~22 sub-intents, extracts structured data
     Layer 3: safety.ts — health/self-harm keyword check (SAFE/WARN/URGENT/BLOCK)
   → Route by subIntent prefix:
     plan_*           → handlePlanIntent()   (src/llm/plan.ts)
     qa_*             → handleQaIntent()     (src/llm/qa.ts)
     review_mistake*  → handleMistakeIntent()(src/llm/mistake.ts)
+    review_weekly    → handleWeeklyReportIntent()(src/llm/weekly-report.ts)
     review_*         → handleReviewIntent() (src/llm/review.ts)
     chat_*           → handleEmotionIntent()(src/llm/emotion.ts)
     other            → deepSeekClient.simpleChat()
   → Response sent back over same WebSocket
 ```
 
-Note: `review_mistake*` routes before `review_*` to avoid prefix collision.
+Note: `review_mistake*` and `review_weekly` route before `review_*` to avoid prefix collision.
 
 ### Key Design Decisions
 
 - **No REST routes.** All interaction is WebSocket-based. Only HTTP endpoint is `GET /health`.
 - **Server is stateless.** The frontend builds a `memoryContext` text summary (profile, stats, plans) and sends it with every WebSocket message. The server has no database.
 - **All persistence is browser LocalStorage.** Keys: `kaoyan-profile`, `kaoyan-study-records`, `kaoyan-plans`, `kaoyan-chat-history`, `kaoyan-mistakes`.
-- **Frontend is a single monolithic HTML file** (`public/index.html`, ~1645 lines) with embedded CSS and JS. It uses LXGW WenKai webfont, Chart.js, KaTeX (math rendering), and marked.js (Markdown parsing) from CDN.
+- **Frontend is a single monolithic HTML file** (`public/index.html`, ~1900 lines) with embedded CSS and JS. It uses LXGW WenKai webfont, Chart.js, KaTeX (math rendering), and marked.js (Markdown parsing) from CDN. Sidebar tabs: 今日计划、学习统计、错题本、周报.
 - **The `src/llm/memory/` module is frontend-oriented** — `storage.ts` uses `localStorage` which doesn't exist in Node.js. The actual memory flow is: frontend builds context → sends via WebSocket → server uses it in prompts.
 
 ### LLM Client Pattern
 
-`src/llm/types.ts` defines the `LLMClient` interface. `DeepSeekClient` (`deepseek.ts`) handles text LLM calls. `ZhipuClient` (`zhipu.ts`) handles image recognition via GLM-4V (multimodal). Each domain handler (plan, qa, review, mistake, emotion) constructs its own system prompt + context and calls the LLM independently.
+`src/llm/types.ts` defines the `LLMClient` interface. `DeepSeekClient` (`deepseek.ts`) handles text LLM calls. `ZhipuClient` (`zhipu.ts`) handles image recognition via GLM-4V (multimodal). Each domain handler (plan, qa, review, mistake, emotion, weekly-report) constructs its own system prompt + context and calls the LLM independently.
 
 ### Intent Sub-Intents
 
-`study_log`, `study_query`, `study_break`, `plan_create`, `plan_query`, `plan_modify`, `plan_complete`, `qa_ask`, `qa_explain`, `qa_example`, `review_query`, `review_schedule`, `review_stage`, `review_mistake`, `review_mistake_query`, `review_mistake_review`, `chat_greeting`, `chat_chat`, `chat_comfort`, `chat_encouragement`, `chat_help`
+`study_log`, `study_query`, `study_break`, `plan_create`, `plan_query`, `plan_modify`, `plan_complete`, `qa_ask`, `qa_explain`, `qa_example`, `review_query`, `review_schedule`, `review_stage`, `review_mistake`, `review_mistake_query`, `review_mistake_review`, `review_weekly`, `chat_greeting`, `chat_chat`, `chat_comfort`, `chat_encouragement`, `chat_help`
 
 Plus server-side: `image_recognize` (set when image is sent without a matching intent)
 

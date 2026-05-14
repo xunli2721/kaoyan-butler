@@ -49,6 +49,11 @@ export const SYSTEM_PROMPT = `你是"考研小管家"，一个专业的AI考研�
 export function detectIntent(message: string): string {
   const lowerMessage = message.toLowerCase();
 
+  // 番茄钟专注
+  if (lowerMessage.includes('番茄钟') || lowerMessage.includes('专注了')) {
+    return 'study_focus';
+  }
+
   // 学习记录相关
   if (lowerMessage.includes('学了') || lowerMessage.includes('学习了') ||
       lowerMessage.includes('看了') || lowerMessage.includes('背了') ||
@@ -109,6 +114,9 @@ export function buildChatPrompt(userMessage: string, context?: Record<string, an
   switch (intent) {
     case 'study_log':
       prompt += '【当前场景】用户在记录今日考研学习情况，请确认记录并给予鼓励，可以提到坚持天数\n';
+      break;
+    case 'study_focus':
+      prompt += '【当前场景】用户完成了一个番茄钟专注周期，请给予肯定和鼓励，建议适当休息，可以提到番茄钟的好处\n';
       break;
     case 'plan':
       prompt += '【当前场景】用户在询问或制定考研复习计划，请根据备考阶段合理安排四科\n';

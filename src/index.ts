@@ -17,6 +17,7 @@ import { handleQaIntent } from './llm/qa.js';
 import { handleReviewIntent } from './llm/review.js';
 import { handleEmotionIntent } from './llm/emotion.js';
 import { handleMistakeIntent } from './llm/mistake.js';
+import { handleWeeklyReportIntent } from './llm/weekly-report.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,6 +50,7 @@ interface Message {
   planData?: any;          // 返回给前端的结构化计划数据
   mistakeData?: any;       // 返回给前端的结构化错题数据
   imageBase64?: string;    // 前端传来的图片 base64
+  weeklyRecordsJson?: string; // 前端传来的本周学习记录数据
 }
 
 wss.on('connection', (ws: WebSocket) => {
@@ -224,6 +226,19 @@ async function handleMessage(ws: WebSocket, message: Message, connectionId: stri
               mistakeData: mistakeResult.mistakeData,
             });
             console.log('[错题本] 响应已发送');
+          } else if (subIntent === 'review_weekly' && result.intent) {
+            // 每周学习报告：路由到专用周报处理器
+            console.log(`[周报] 处理意图: ${subIntent}`);
+            const weeklyResult = await handleWeeklyReportIntent(
+              text, result.intent, deepSeekClient, message.memoryContext, message.weeklyRecordsJson
+            );
+            sendMessage(ws, {
+              type: 'chat',
+              text: weeklyResult.text,
+              timestamp: Date.now(),
+              intent: subIntent,
+            });
+            console.log('[周报] 响应已发送');
           } else if (subIntent.startsWith('review_') && result.intent) {
             // 复习提醒：路由到专用review处理器
             console.log(`[Review] 处理意图: ${subIntent}`);
