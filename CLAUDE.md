@@ -53,8 +53,8 @@ Note: `review_mistake*` and `review_weekly` route before `review_*` to avoid pre
 
 - **No REST routes.** All interaction is WebSocket-based. Only HTTP endpoint is `GET /health`.
 - **Server is stateless.** The frontend builds a `memoryContext` text summary (profile, stats, plans) and sends it with every WebSocket message. The server has no database.
-- **All persistence is browser LocalStorage.** Keys: `kaoyan-profile`, `kaoyan-study-records`, `kaoyan-plans`, `kaoyan-chat-history`, `kaoyan-mistakes`.
-- **Frontend is a single monolithic HTML file** (`public/index.html`, ~1900 lines) with embedded CSS and JS. It uses LXGW WenKai webfont, Chart.js, KaTeX (math rendering), and marked.js (Markdown parsing) from CDN. Sidebar tabs: 今日计划、学习统计、错题本、周报.
+- **All persistence is browser LocalStorage.** Keys: `kaoyan-profile`, `kaoyan-study-records`, `kaoyan-plans`, `kaoyan-mistakes`, `kaoyan-pomodoro-state`, `kaoyan-guide-shown`, `kaoyan-butler-conversations` (metadata), `kaoyan-butler-chat-{convId}` (per-conversation history), `kaoyan-butler-active-conv`. Chat history supports multi-conversation with auto-migration from old `kaoyan-butler-chat-history` format.
+- **Frontend is a single monolithic HTML file** (`public/index.html`, ~2600 lines) with embedded CSS and JS. It uses LXGW WenKai webfont, Chart.js, KaTeX (math rendering), and marked.js (Markdown parsing) from CDN. Sidebar tabs: 今日计划、学习统计、错题本、周报、数据.
 - **The `src/llm/memory/` module is frontend-oriented** — `storage.ts` uses `localStorage` which doesn't exist in Node.js. The actual memory flow is: frontend builds context → sends via WebSocket → server uses it in prompts.
 
 ### LLM Client Pattern

@@ -197,8 +197,8 @@
     }
 
     /* Long message collapse */
-    .msg-text.collapsed { max-height: 180px; overflow: hidden; position: relative; }
-    .msg-text.collapsed::after {
+    .message.collapsed { max-height: 180px; overflow: hidden; position: relative; }
+    .message.collapsed::after {
       content: ''; position: absolute; bottom: 0; left: 0; right: 0;
       height: 36px; background: linear-gradient(transparent, var(--surface));
     }
@@ -496,6 +496,68 @@
       border: 1px solid rgba(196,125,63,0.15);
     }
 
+    /* Data Management */
+    .data-panel { padding: 4px 0; }
+    .data-section { background: var(--bg); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 12px; border: 1px solid rgba(44,36,23,0.04); }
+    .data-section-title { font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 700; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
+    .data-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 4px; }
+    .data-summary-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: var(--surface); border-radius: 6px; font-size: 12px; }
+    .data-summary-label { color: var(--text-secondary); }
+    .data-summary-count { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+    .data-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 10px 16px; border-radius: var(--radius-sm); border: none;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+      font-family: inherit; margin-bottom: 8px;
+    }
+    .data-btn:last-child { margin-bottom: 0; }
+    .data-btn-export { background: var(--accent-gradient); color: white; box-shadow: var(--shadow-sm); }
+    .data-btn-export:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+    .data-btn-import { background: transparent; color: var(--accent); border: 1.5px solid rgba(107,91,78,0.25); }
+    .data-btn-import:hover { border-color: var(--accent); background: var(--accent-light); }
+    .data-btn-danger { background: transparent; color: var(--red); border: 1.5px solid rgba(192,80,77,0.2); }
+    .data-btn-danger:hover { border-color: var(--red); background: rgba(192,80,77,0.06); }
+    .data-note { font-size: 11px; color: var(--text-tertiary); line-height: 1.6; padding: 0 2px; }
+
+    /* Conversation Bar */
+    .conv-bar {
+      display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+      background: var(--surface); border-bottom: 1px solid rgba(44,36,23,0.06);
+      min-height: 42px; flex-shrink: 0;
+    }
+    .conv-select-wrap { position: relative; flex: 1; min-width: 0; }
+    .conv-select {
+      width: 100%; padding: 6px 28px 6px 10px; border-radius: var(--radius-sm);
+      border: 1px solid rgba(44,36,23,0.12); background: var(--bg); color: var(--text);
+      font-size: 13px; font-family: inherit; cursor: pointer; appearance: none;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .conv-select:focus { outline: none; border-color: var(--accent); }
+    .conv-select-arrow {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      pointer-events: none; color: var(--text-tertiary); font-size: 10px;
+    }
+    .conv-btn {
+      width: 30px; height: 30px; border-radius: 8px; border: none;
+      background: transparent; color: var(--text-secondary); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; transition: all 0.2s; flex-shrink: 0;
+    }
+    .conv-btn:hover { background: var(--accent-light); color: var(--accent); }
+    .conv-btn-danger:hover { background: rgba(192,80,77,0.08); color: var(--red); }
+    .conv-rename-input {
+      flex: 1; padding: 6px 10px; border-radius: var(--radius-sm);
+      border: 1.5px solid var(--accent); font-size: 13px; font-family: inherit;
+      background: var(--bg); color: var(--text); outline: none;
+    }
+    .load-earlier-btn {
+      display: block; margin: 8px auto; padding: 6px 16px; border-radius: 14px;
+      border: 1px solid rgba(44,36,23,0.12); background: var(--surface);
+      color: var(--text-secondary); font-size: 12px; cursor: pointer;
+      font-family: inherit; transition: all 0.2s;
+    }
+    .load-earlier-btn:hover { border-color: var(--accent); color: var(--accent); }
+
     /* Sidebar overlay for mobile */
     .sidebar-overlay {
       display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -604,6 +666,15 @@
     <div class="main-layout">
       <!-- Left: Chat -->
       <div class="chat-area">
+        <div class="conv-bar" id="convBar">
+          <div class="conv-select-wrap">
+            <select class="conv-select" id="convSelect" title="选择对话" onchange="switchConversation(this.value)"></select>
+            <span class="conv-select-arrow">▾</span>
+          </div>
+          <button class="conv-btn" onclick="createNewConversation()" title="新建对话">➕</button>
+          <button class="conv-btn" onclick="renameCurrentConversation()" title="重命名">✏️</button>
+          <button class="conv-btn conv-btn-danger" onclick="deleteCurrentConversation()" title="删除对话">🗑️</button>
+        </div>
         <div class="messages" id="messages">
           <div class="typing-indicator" id="typingIndicator">
             <span></span><span></span><span></span>
@@ -623,6 +694,7 @@
           <button class="formula-btn" onclick="openFormulaModal()" title="插入数学公式">fx</button>
           <button class="formula-btn" onclick="document.getElementById('imageFileInput').click()" title="拍照或上传图片识别公式">📷</button>
           <input type="file" id="imageFileInput" accept="image/*" style="display:none" onchange="handleImageSelect(event)">
+          <input type="file" id="dataFileInput" accept=".json" style="display:none" onchange="handleDataImport(event)">
           <input type="text" id="messageInput" placeholder="输入消息，或点击📷拍照识别公式..." autocomplete="off">
           <button class="send-btn" id="sendBtn" disabled>➤</button>
         </div>
@@ -635,6 +707,7 @@
           <button class="sidebar-tab" data-tab="stats" onclick="switchSidebarTab('stats')">📊 学习统计</button>
           <button class="sidebar-tab" data-tab="mistakes" onclick="switchSidebarTab('mistakes')">📕 错题本</button>
           <button class="sidebar-tab" data-tab="weeklyReport" onclick="switchSidebarTab('weeklyReport')">📈 周报</button>
+          <button class="sidebar-tab" data-tab="data" onclick="switchSidebarTab('data')">💾 数据</button>
         </div>
         <div class="sidebar-content" id="sidebarPlan">
           <div id="planContent"></div>
@@ -657,6 +730,9 @@
         <div class="sidebar-content" id="sidebarWeeklyReport" style="display:none;">
           <div id="weeklyReportContent"></div>
         </div>
+        <div class="sidebar-content" id="sidebarData" style="display:none;">
+          <div id="dataContent"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -672,6 +748,7 @@
       <button class="sidebar-tab" data-tab="stats" onclick="switchOverlayTab('stats')">📊 学习统计</button>
       <button class="sidebar-tab" data-tab="mistakes" onclick="switchOverlayTab('mistakes')">📕 错题本</button>
       <button class="sidebar-tab" data-tab="weeklyReport" onclick="switchOverlayTab('weeklyReport')">📈 周报</button>
+      <button class="sidebar-tab" data-tab="data" onclick="switchOverlayTab('data')">💾 数据</button>
     </div>
     <div class="sidebar-content" id="overlayPlan" style="flex:1;overflow-y:auto;padding:12px;">
       <div id="overlayPlanContent"></div>
@@ -684,6 +761,9 @@
     </div>
     <div class="sidebar-content" id="overlayWeeklyReport" style="display:none;flex:1;overflow-y:auto;padding:12px;">
       <div id="overlayWeeklyReportContent"></div>
+    </div>
+    <div class="sidebar-content" id="overlayData" style="display:none;flex:1;overflow-y:auto;padding:12px;">
+      <div id="overlayDataContent"></div>
     </div>
   </div>
 
@@ -725,13 +805,60 @@
       return id;
     }
 
-    // ==================== 对话历史管理 ====================
-    const CHAT_HISTORY_KEY = 'kaoyan-butler-chat-history';
-    function loadChatHistory() {
-      try { return JSON.parse(localStorage.getItem(CHAT_HISTORY_KEY) || '[]'); } catch { return []; }
+    // ==================== 对话历史管理（多会话） ====================
+    const OLD_CHAT_HISTORY_KEY = 'kaoyan-butler-chat-history';
+    const CONVERSATIONS_KEY = 'kaoyan-butler-conversations';
+    const ACTIVE_CONV_KEY = 'kaoyan-butler-active-conv';
+    const CONV_HISTORY_PREFIX = 'kaoyan-butler-chat-';
+    const MAX_CONV_MESSAGES = 500;
+    const RENDER_BATCH_SIZE = 50;
+
+    function getConversations() {
+      try { return JSON.parse(localStorage.getItem(CONVERSATIONS_KEY) || '[]'); } catch { return []; }
     }
+    function saveConversations(convs) {
+      try { localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(convs)); } catch(e) { console.error('保存对话列表失败:', e); }
+    }
+    function getActiveConvId() {
+      return localStorage.getItem(ACTIVE_CONV_KEY) || '';
+    }
+    function saveActiveConvId(id) {
+      localStorage.setItem(ACTIVE_CONV_KEY, id);
+    }
+    function getConvHistory(convId) {
+      try { return JSON.parse(localStorage.getItem(CONV_HISTORY_PREFIX + convId) || '[]'); } catch { return []; }
+    }
+    function saveConvHistory(convId, msgs) {
+      if (msgs.length > MAX_CONV_MESSAGES) msgs.splice(0, msgs.length - MAX_CONV_MESSAGES);
+      try { localStorage.setItem(CONV_HISTORY_PREFIX + convId, JSON.stringify(msgs)); } catch(e) { console.error('保存对话历史失败:', e); }
+    }
+    function generateConvId() {
+      return 'conv-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 5);
+    }
+    function migrateOldChatHistory() {
+      const old = localStorage.getItem(OLD_CHAT_HISTORY_KEY);
+      if (!old) return;
+      try {
+        const msgs = JSON.parse(old);
+        if (!Array.isArray(msgs) || msgs.length === 0) { localStorage.removeItem(OLD_CHAT_HISTORY_KEY); return; }
+        const convId = generateConvId();
+        const convs = [{ id: convId, name: '历史对话', createdAt: Date.now(), updatedAt: Date.now() }];
+        saveConversations(convs);
+        saveConvHistory(convId, msgs);
+        saveActiveConvId(convId);
+        localStorage.removeItem(OLD_CHAT_HISTORY_KEY);
+        console.log('[Migration] 已迁移旧对话历史到多会话格式');
+      } catch(e) { console.error('[Migration] 迁移失败:', e); }
+    }
+
+    // 兼容旧接口
+    function loadChatHistory() { return getConvHistory(getActiveConvId()); }
     function saveChatHistory(msgs) {
-      try { localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(msgs)); } catch(e) { console.error('保存对话历史失败:', e); }
+      const convId = getActiveConvId();
+      saveConvHistory(convId, msgs);
+      const convs = getConversations();
+      const conv = convs.find(c => c.id === convId);
+      if (conv) { conv.updatedAt = Date.now(); saveConversations(convs); }
     }
 
     // ==================== 考研档案管理 ====================
@@ -1310,10 +1437,12 @@
       document.getElementById('sidebarStats').style.display = tab==='stats'?'':'none';
       document.getElementById('sidebarMistakes').style.display = tab==='mistakes'?'':'none';
       document.getElementById('sidebarWeeklyReport').style.display = tab==='weeklyReport'?'':'none';
+      document.getElementById('sidebarData').style.display = tab==='data'?'':'none';
       if (tab==='plan') { renderPlanPanel(); renderHistoryPlan(); }
       if (tab==='stats') renderStatsPanel();
       if (tab==='mistakes') renderMistakesPanel();
       if (tab==='weeklyReport') renderWeeklyReportPanel();
+      if (tab==='data') renderDataPanel();
     }
 
     // ==================== Mobile overlay ====================
@@ -1331,9 +1460,11 @@
       document.getElementById('overlayStats').style.display = tab==='stats'?'':'none';
       document.getElementById('overlayMistakes').style.display = tab==='mistakes'?'':'none';
       document.getElementById('overlayWeeklyReport').style.display = tab==='weeklyReport'?'':'none';
+      document.getElementById('overlayData').style.display = tab==='data'?'':'none';
       if (tab==='stats') renderStatsPanel('overlayStatsContent');
       if (tab==='mistakes') renderMistakesPanel('overlayMistakesContent');
       if (tab==='weeklyReport') renderWeeklyReportPanel('overlayWeeklyReportContent');
+      if (tab==='data') renderDataPanel('overlayDataContent');
     }
 
     // ==================== 记忆上下文 ====================
@@ -1606,7 +1737,19 @@
     const statusText = document.getElementById('statusText');
     const typingIndicator = document.getElementById('typingIndicator');
 
-    let ws = null, deviceId = getOrCreateDeviceId(), chatHistory = loadChatHistory();
+    let ws = null, deviceId = getOrCreateDeviceId();
+    migrateOldChatHistory();
+    (function ensureDefaultConversation() {
+      let convs = getConversations();
+      if (convs.length === 0) {
+        const id = generateConvId();
+        convs = [{ id, name: '新对话', createdAt: Date.now(), updatedAt: Date.now() }];
+        saveConversations(convs);
+        saveActiveConvId(id);
+      }
+      if (!getActiveConvId()) saveActiveConvId(convs[0].id);
+    })();
+    let chatHistory = loadChatHistory();
 
     function addDateSeparator(dateStr) {
       const sep = document.createElement('div');
@@ -1619,14 +1762,36 @@
       messagesContainer.insertBefore(sep, typingIndicator);
     }
 
+    let renderedMsgOffset = 0; // How many messages are NOT yet rendered (from the start)
+
     function restoreChatHistory() {
+      // Clear all existing messages (except typing indicator)
+      const msgs = messagesContainer.querySelectorAll('.message-wrapper, .date-separator, .load-earlier-btn');
+      msgs.forEach(el => el.remove());
+
+      const total = chatHistory.length;
+      const startIdx = Math.max(0, total - RENDER_BATCH_SIZE);
+      renderedMsgOffset = startIdx;
+
+      // Add "load earlier" button if needed
+      if (startIdx > 0) {
+        const btn = document.createElement('button');
+        btn.className = 'load-earlier-btn';
+        btn.textContent = `📜 加载更早的消息（还有 ${startIdx} 条）`;
+        btn.onclick = loadEarlierMessages;
+        messagesContainer.insertBefore(btn, typingIndicator);
+      }
+
+      // Render the last batch
       let lastDate = '';
-      chatHistory.forEach(msg => {
+      for (let i = startIdx; i < total; i++) {
+        const msg = chatHistory[i];
         const msgDate = new Date(msg.timestamp).toISOString().split('T')[0];
         if (msgDate !== lastDate) { addDateSeparator(msgDate); lastDate = msgDate; }
         addMessage(msg.text, msg.type, false);
-      });
-      if (chatHistory.length === 0) {
+      }
+
+      if (total === 0) {
         const profile = getProfile();
         if (profile?.name) {
           addMessage(`你好${profile.name}！欢迎回来！今天继续加油吧！`, 'assistant', true);
@@ -1644,6 +1809,95 @@
           saveChatHistory(chatHistory);
         }
       }
+    }
+
+    function loadEarlierMessages() {
+      const endIdx = renderedMsgOffset;
+      const startIdx = Math.max(0, endIdx - RENDER_BATCH_SIZE);
+      if (startIdx >= endIdx) return;
+
+      // Remove old "load earlier" button
+      const oldBtn = messagesContainer.querySelector('.load-earlier-btn');
+      if (oldBtn) oldBtn.remove();
+
+      // Find first date separator to merge dates correctly
+      const firstSep = messagesContainer.querySelector('.date-separator');
+      const firstMsgDate = chatHistory[startIdx] ? new Date(chatHistory[startIdx].timestamp).toISOString().split('T')[0] : '';
+
+      // Build fragment
+      const fragment = document.createDocumentFragment();
+      let lastDate = '';
+      for (let i = startIdx; i < endIdx; i++) {
+        const msg = chatHistory[i];
+        const msgDate = new Date(msg.timestamp).toISOString().split('T')[0];
+        if (msgDate !== lastDate) {
+          // Only add separator if it doesn't match the current first visible date
+          if (!firstSep || firstSep.querySelector('span')?.textContent !== formatSeparatorLabel(msgDate)) {
+            const sep = document.createElement('div');
+            sep.className = 'date-separator';
+            sep.innerHTML = `<span>${formatSeparatorLabel(msgDate)}</span>`;
+            fragment.appendChild(sep);
+          }
+          lastDate = msgDate;
+        }
+        const wrapper = createMessageElement(msg.text, msg.type);
+        fragment.appendChild(wrapper);
+      }
+
+      renderedMsgOffset = startIdx;
+
+      // Add new "load earlier" button if needed
+      if (startIdx > 0) {
+        const btn = document.createElement('button');
+        btn.className = 'load-earlier-btn';
+        btn.textContent = `📜 加载更早的消息（还有 ${startIdx} 条）`;
+        btn.onclick = loadEarlierMessages;
+        fragment.appendChild(btn);
+      }
+
+      // Insert at the top of messages (after any existing content at top)
+      const firstChild = messagesContainer.querySelector('.message-wrapper, .date-separator, .load-earlier-btn');
+      if (firstChild) {
+        messagesContainer.insertBefore(fragment, firstChild);
+      } else {
+        messagesContainer.insertBefore(fragment, typingIndicator);
+      }
+    }
+
+    function formatSeparatorLabel(dateStr) {
+      const today = new Date().toISOString().split('T')[0];
+      const yesterday = new Date(Date.now()-86400000).toISOString().split('T')[0];
+      if (dateStr===today) return '今天';
+      if (dateStr===yesterday) return '昨天';
+      return dateStr;
+    }
+
+    function createMessageElement(text, type) {
+      const wrapper = document.createElement('div');
+      wrapper.className = `message-wrapper ${type}`;
+      const avatar = document.createElement('div');
+      avatar.className = 'msg-avatar';
+      avatar.textContent = type==='user'?'👤':'🤖';
+      const content = document.createElement('div');
+      content.className = 'msg-content';
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message ${type}`;
+      const rendered = type==='assistant' ? renderContent(text) : null;
+      if (type==='assistant'&&text.length>500) {
+        msgDiv.classList.add('collapsed'); msgDiv.innerHTML=rendered;
+        const btn = document.createElement('button');
+        btn.className='msg-expand-btn'; btn.textContent='展开全文';
+        btn.onclick=()=>{ msgDiv.classList.toggle('collapsed'); btn.textContent=msgDiv.classList.contains('collapsed')?'展开全文':'收起'; };
+        content.appendChild(msgDiv); content.appendChild(btn);
+      } else if (type==='assistant') { msgDiv.innerHTML=rendered; content.appendChild(msgDiv); }
+      else { msgDiv.textContent=text; content.appendChild(msgDiv); }
+      const timeDiv = document.createElement('div');
+      timeDiv.className='msg-time';
+      const ts = Date.now();
+      timeDiv.textContent=`${new Date(ts).getHours().toString().padStart(2,'0')}:${new Date(ts).getMinutes().toString().padStart(2,'0')}`;
+      content.appendChild(timeDiv);
+      wrapper.appendChild(avatar); wrapper.appendChild(content);
+      return wrapper;
     }
 
     function connect() {
@@ -1798,6 +2052,7 @@
       }
       const displayText = imgBase64 ? (text || '[图片] 请识别公式') : text;
       addMessage(displayText, 'user', true); showTyping();
+      if (text) autoNameConversation(text);
       if (text) {
         try {
           const before = getStudyRecords().length;
@@ -1918,39 +2173,364 @@
     renderStatsPanel();
     checkReminders();
 
+    // ==================== 对话管理 ====================
+    function renderConvSelect() {
+      const select = document.getElementById('convSelect');
+      if (!select) return;
+      const convs = getConversations();
+      const activeId = getActiveConvId();
+      select.innerHTML = convs.map(c =>
+        `<option value="${c.id}" ${c.id===activeId?'selected':''}>${escapeHtml(c.name)} (${getConvHistory(c.id).length})</option>`
+      ).join('');
+    }
+
+    function switchConversation(convId) {
+      saveActiveConvId(convId);
+      chatHistory = loadChatHistory();
+      restoreChatHistory();
+      renderConvSelect();
+    }
+
+    function createNewConversation() {
+      const convs = getConversations();
+      if (convs.length >= 20) { alert('最多支持 20 个对话，请删除一些旧对话后再创建。'); return; }
+      const id = generateConvId();
+      convs.push({ id, name: '新对话', createdAt: Date.now(), updatedAt: Date.now() });
+      saveConversations(convs);
+      saveActiveConvId(id);
+      chatHistory = [];
+      restoreChatHistory();
+      renderConvSelect();
+    }
+
+    function renameCurrentConversation() {
+      const convId = getActiveConvId();
+      const convs = getConversations();
+      const conv = convs.find(c => c.id === convId);
+      if (!conv) return;
+      const newName = prompt('请输入新名称：', conv.name);
+      if (!newName || newName.trim() === conv.name) return;
+      conv.name = newName.trim().substring(0, 30);
+      saveConversations(convs);
+      renderConvSelect();
+    }
+
+    function deleteCurrentConversation() {
+      const convId = getActiveConvId();
+      const convs = getConversations();
+      if (convs.length <= 1) { alert('至少保留一个对话。'); return; }
+      const conv = convs.find(c => c.id === convId);
+      if (!conv) return;
+      if (!confirm(`确定删除对话「${conv.name}」？\n该对话的所有消息将被删除，此操作不可恢复。`)) return;
+      // Remove from conversations list
+      const newConvs = convs.filter(c => c.id !== convId);
+      saveConversations(newConvs);
+      // Remove history
+      localStorage.removeItem(CONV_HISTORY_PREFIX + convId);
+      // Switch to first remaining conversation
+      saveActiveConvId(newConvs[0].id);
+      chatHistory = loadChatHistory();
+      restoreChatHistory();
+      renderConvSelect();
+    }
+
+    function autoNameConversation(text) {
+      const convId = getActiveConvId();
+      const convs = getConversations();
+      const conv = convs.find(c => c.id === convId);
+      if (!conv || conv.name !== '新对话') return; // Only auto-name if still default
+      // Use first ~15 chars of first user message
+      conv.name = text.substring(0, 15).replace(/\n/g, ' ') + (text.length > 15 ? '...' : '');
+      conv.updatedAt = Date.now();
+      saveConversations(convs);
+      renderConvSelect();
+    }
+
+    // 初始化对话选择器
+    renderConvSelect();
+
+    // ==================== 数据导入导出 ====================
+    const DATA_EXPORT_KEYS = [
+      { key: PROFILE_KEY, name: '用户档案', icon: '👤' },
+      { key: STUDY_RECORDS_KEY, name: '学习记录', icon: '📝' },
+      { key: PLANS_KEY, name: '学习计划', icon: '📋' },
+      { key: MISTAKES_KEY, name: '错题本', icon: '📕' },
+      { key: POMODORO_KEY, name: '番茄钟', icon: '🍅' },
+      { key: 'kaoyan-guide-shown', name: '引导状态', icon: '✨' }
+    ];
+
+    function getDataSummary() {
+      const summary = {};
+      for (const item of DATA_EXPORT_KEYS) {
+        const raw = localStorage.getItem(item.key);
+        if (!raw) { summary[item.key] = 0; continue; }
+        try {
+          const parsed = JSON.parse(raw);
+          summary[item.key] = Array.isArray(parsed) ? parsed.length : 1;
+        } catch { summary[item.key] = raw === '1' ? 1 : 0; }
+      }
+      // Count conversations and their messages
+      const convs = getConversations();
+      summary._convCount = convs.length;
+      summary._convMsgCount = 0;
+      for (const conv of convs) summary._convMsgCount += getConvHistory(conv.id).length;
+      return summary;
+    }
+
+    function renderDataPanel(targetId) {
+      const id = targetId || 'dataContent';
+      const el = document.getElementById(id);
+      if (!el) return;
+      const summary = getDataSummary();
+      let totalItems = 0;
+      for (const item of DATA_EXPORT_KEYS) totalItems += (summary[item.key] || 0);
+      totalItems += summary._convMsgCount || 0;
+
+      let html = '<div class="data-panel">';
+      html += '<div class="data-section">';
+      html += '<div class="data-section-title">📊 数据概览</div>';
+      html += '<div class="data-summary">';
+      for (const item of DATA_EXPORT_KEYS) {
+        const count = summary[item.key] || 0;
+        html += `<div class="data-summary-item"><span class="data-summary-label">${item.icon} ${item.name}</span><span class="data-summary-count">${count}</span></div>`;
+      }
+      html += `<div class="data-summary-item"><span class="data-summary-label">💬 对话数</span><span class="data-summary-count">${summary._convCount || 0}</span></div>`;
+      html += `<div class="data-summary-item"><span class="data-summary-label">📨 对话消息</span><span class="data-summary-count">${summary._convMsgCount || 0}</span></div>`;
+      html += '</div></div>';
+
+      html += '<div class="data-section">';
+      html += '<div class="data-section-title">📤 导出数据</div>';
+      html += `<button class="data-btn data-btn-export" onclick="exportAllData()">📥 导出全部数据 (${totalItems} 条)</button>`;
+      html += '<p class="data-note">将所有数据导出为 JSON 文件，可用于备份或迁移到其他设备。</p>';
+      html += '</div>';
+
+      html += '<div class="data-section">';
+      html += '<div class="data-section-title">📥 导入数据</div>';
+      html += '<button class="data-btn data-btn-import" onclick="document.getElementById(\'dataFileInput\').click()">📤 选择备份文件导入</button>';
+      html += '<p class="data-note">从之前导出的 JSON 文件恢复数据。导入将覆盖当前相同类型的数据。</p>';
+      html += '</div>';
+
+      html += '<div class="data-section">';
+      html += '<div class="data-section-title">⚠️ 危险操作</div>';
+      html += '<button class="data-btn data-btn-danger" onclick="clearAllData()">🗑️ 清空所有数据</button>';
+      html += '<p class="data-note">删除所有本地数据，此操作不可恢复。建议先导出备份。</p>';
+      html += '</div>';
+
+      html += '</div>';
+      el.innerHTML = html;
+    }
+
+    function exportAllData() {
+      const data = {
+        _meta: {
+          appVersion: 'kaoyan-butler',
+          version: 2,
+          exportDate: new Date().toISOString(),
+          device: navigator.userAgent
+        }
+      };
+      let totalItems = 0;
+      // Export standard keys
+      for (const item of DATA_EXPORT_KEYS) {
+        const raw = localStorage.getItem(item.key);
+        if (raw !== null) {
+          try { data[item.key] = JSON.parse(raw); } catch { data[item.key] = raw; }
+          if (Array.isArray(data[item.key])) totalItems += data[item.key].length;
+          else totalItems += 1;
+        }
+      }
+      // Export conversations and their histories
+      const convs = getConversations();
+      data[CONVERSATIONS_KEY] = convs;
+      data._conversations = {};
+      for (const conv of convs) {
+        const history = getConvHistory(conv.id);
+        data._conversations[conv.id] = history;
+        totalItems += history.length;
+      }
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+      a.href = url;
+      a.download = `kaoyan-backup-${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      alert(`✅ 导出成功！共 ${totalItems} 条数据已保存到文件。`);
+    }
+
+    function handleDataImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (!data || typeof data !== 'object') {
+            alert('❌ 文件格式错误：无法解析为有效数据');
+            return;
+          }
+          // Validate: must have at least one known key or _meta
+          const hasMeta = data._meta && data._meta.appVersion === 'kaoyan-butler';
+          const knownKeys = DATA_EXPORT_KEYS.map(i => i.key);
+          const hasKnownKey = knownKeys.some(k => data[k] !== undefined);
+          const hasConversations = data[CONVERSATIONS_KEY] || data._conversations;
+          if (!hasMeta && !hasKnownKey && !hasConversations) {
+            alert('❌ 文件格式错误：未识别的备份文件');
+            return;
+          }
+          // Count items
+          let importCount = 0;
+          for (const item of DATA_EXPORT_KEYS) {
+            if (data[item.key] !== undefined) {
+              importCount += Array.isArray(data[item.key]) ? data[item.key].length : 1;
+            }
+          }
+          // Count conversation messages
+          if (data._conversations) {
+            for (const convId of Object.keys(data._conversations)) {
+              importCount += Array.isArray(data._conversations[convId]) ? data._conversations[convId].length : 0;
+            }
+          }
+          if (!confirm(`📥 确认导入？\n\n将导入 ${importCount} 条数据，覆盖当前相同类型的数据。\n建议先导出当前数据作为备份。\n\n确定继续？`)) {
+            return;
+          }
+          // Import standard data
+          for (const item of DATA_EXPORT_KEYS) {
+            if (data[item.key] !== undefined) {
+              const val = typeof data[item.key] === 'string' ? data[item.key] : JSON.stringify(data[item.key]);
+              localStorage.setItem(item.key, val);
+            }
+          }
+          // Import conversations
+          if (data[CONVERSATIONS_KEY]) {
+            localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(data[CONVERSATIONS_KEY]));
+          }
+          if (data._conversations) {
+            for (const [convId, history] of Object.entries(data._conversations)) {
+              localStorage.setItem(CONV_HISTORY_PREFIX + convId, JSON.stringify(history));
+            }
+          }
+          // Handle old format (single chat history) for backwards compatibility
+          if (data[OLD_CHAT_HISTORY_KEY] && !data[CONVERSATIONS_KEY]) {
+            // Will be migrated on next page load
+            localStorage.setItem(OLD_CHAT_HISTORY_KEY, JSON.stringify(data[OLD_CHAT_HISTORY_KEY]));
+          }
+          alert(`✅ 导入成功！共导入 ${importCount} 条数据。\n页面将在 2 秒后刷新...`);
+          setTimeout(() => location.reload(), 2000);
+        } catch (err) {
+          alert('❌ 文件解析失败：' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = ''; // Reset file input
+    }
+
+    function clearAllData() {
+      if (!confirm('⚠️ 确认清空所有数据？\n\n此操作将删除所有本地数据且不可恢复。\n建议先导出备份。\n\n确定继续？')) return;
+      if (!confirm('🔴 最后确认：真的要删除所有数据吗？')) return;
+      for (const item of DATA_EXPORT_KEYS) localStorage.removeItem(item.key);
+      // Clear all conversation histories
+      const convs = getConversations();
+      for (const conv of convs) localStorage.removeItem(CONV_HISTORY_PREFIX + conv.id);
+      localStorage.removeItem(CONVERSATIONS_KEY);
+      localStorage.removeItem(ACTIVE_CONV_KEY);
+      localStorage.removeItem(OLD_CHAT_HISTORY_KEY);
+      alert('✅ 所有数据已清空。页面将在 2 秒后刷新...');
+      setTimeout(() => location.reload(), 2000);
+    }
+
     // ==================== 模拟数据（调试用） ====================
     window.generateMockData = function() {
-      const profile = { name:'小明', targetSchool:'浙江大学', targetMajor:'计算机科学与技术', examDate:'2026-12-20', stage:'基础', weakPoints:['高数'], createdAt: new Date('2026-04-26').getTime() };
+      // ========== 用户档案 ==========
+      const profile = { name:'小明', targetSchool:'浙江大学', targetMajor:'计算机科学与技术', examDate:'2026-12-20', stage:'基础', weakPoints:['高数','线性代数'], undergraduateSchool:'杭州电子科技大学', studyPreference:'上午高数，下午专业课，晚上英语', createdAt: new Date('2026-04-26').getTime() };
       localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+
+      // ========== 学习记录 (4/26 - 5/14) ==========
       const studyRecords = [
+        // 4/26 周六
         { date:'2026-04-26', subject:'高数', duration:150, content:'复习极限与连续，做课后习题20道', completed:true },
         { date:'2026-04-26', subject:'英语', duration:90, content:'背单词100个 + 阅读理解1篇', completed:true },
         { date:'2026-04-26', subject:'政治', duration:60, content:'看马原视频第3章', completed:true },
+        // 4/27 周日
         { date:'2026-04-27', subject:'高数', duration:180, content:'导数与微分，张宇1000题A组', completed:true },
         { date:'2026-04-27', subject:'英语', duration:60, content:'背单词80个 + 完形填空练习', completed:true },
         { date:'2026-04-27', subject:'专业课', duration:120, content:'数据结构：链表与栈的基本操作', completed:true },
+        // 4/28 周一
         { date:'2026-04-28', subject:'英语', duration:120, content:'阅读理解精读2篇 + 翻译练习', completed:true },
         { date:'2026-04-28', subject:'高数', duration:90, content:'中值定理复习 + 例题', completed:true },
         { date:'2026-04-28', subject:'政治', duration:60, content:'马原选择题练习50道', completed:true },
+        // 4/29 周二
         { date:'2026-04-29', subject:'高数', duration:210, content:'不定积分专项突破，张宇1000题B组', completed:true },
         { date:'2026-04-29', subject:'专业课', duration:90, content:'数据结构：二叉树遍历算法', completed:true },
         { date:'2026-04-29', subject:'英语', duration:60, content:'背单词 + 新题型练习', completed:true },
+        // 4/30 周三
         { date:'2026-04-30', subject:'高数', duration:120, content:'定积分计算方法总结', completed:true },
         { date:'2026-04-30', subject:'英语', duration:150, content:'阅读理解精读3篇 + 作文模板积累', completed:true },
         { date:'2026-04-30', subject:'政治', duration:90, content:'毛中特第1-2章 + 选择题', completed:true },
+        // 5/1 周四（五一假期）
         { date:'2026-05-01', subject:'高数', duration:150, content:'定积分应用（面积、体积）', completed:true },
         { date:'2026-05-01', subject:'专业课', duration:120, content:'数据结构：图的存储与遍历', completed:true },
         { date:'2026-05-01', subject:'英语', duration:90, content:'背单词 + 阅读理解2篇', completed:true },
+        // 5/2 周五（五一假期）
         { date:'2026-05-02', subject:'高数', duration:90, content:'微分方程入门 + 基本概念', completed:true },
         { date:'2026-05-02', subject:'英语', duration:60, content:'背单词 + 翻译练习', completed:true },
+        { date:'2026-05-02', subject:'专业课', duration:120, content:'排序算法：冒泡、选择、插入', completed:true },
+        // 5/3 周六（五一假期）
         { date:'2026-05-03', subject:'高数', duration:120, content:'微分方程解法练习', completed:true },
         { date:'2026-05-03', subject:'英语', duration:90, content:'阅读理解2篇 + 新题型', completed:true },
         { date:'2026-05-03', subject:'政治', duration:60, content:'毛中特第4章', completed:true },
+        // 5/4 周日
         { date:'2026-05-04', subject:'专业课', duration:150, content:'数据结构：排序算法（快排、归并）', completed:true },
         { date:'2026-05-04', subject:'英语', duration:120, content:'真题阅读2015年Text1-2', completed:true },
         { date:'2026-05-04', subject:'高数', duration:90, content:'二重积分基础', completed:true },
-      ].map((r,i) => ({ ...r, createdAt: new Date(r.date+'T0'+(8+i%12)+':00:00').getTime() }));
+        // 5/5 周一
+        { date:'2026-05-05', subject:'高数', duration:150, content:'二重积分计算方法 + 极坐标变换', completed:true },
+        { date:'2026-05-05', subject:'英语', duration:90, content:'背单词 + 翻译练习', completed:true },
+        { date:'2026-05-05', subject:'专业课', duration:120, content:'查找算法（二分、哈希）', completed:true },
+        // 5/6 周二
+        { date:'2026-05-06', subject:'高数', duration:180, content:'二重积分综合练习 + 错题回顾', completed:true },
+        { date:'2026-05-06', subject:'政治', duration:90, content:'毛中特第5-6章 + 选择题', completed:true },
+        { date:'2026-05-06', subject:'英语', duration:60, content:'背单词 + 完形填空', completed:true },
+        // 5/7 周三
+        { date:'2026-05-07', subject:'高数', duration:120, content:'三重积分入门', completed:true },
+        { date:'2026-05-07', subject:'专业课', duration:150, content:'数据结构：树与二叉树综合', completed:true },
+        { date:'2026-05-07', subject:'英语', duration:120, content:'真题阅读2015年Text3-4', completed:true },
+        // 5/8 周四
+        { date:'2026-05-08', subject:'高数', duration:150, content:'曲线积分与曲面积分', completed:true },
+        { date:'2026-05-08', subject:'英语', duration:90, content:'背单词 + 新题型练习', completed:true },
+        { date:'2026-05-08', subject:'政治', duration:60, content:'毛中特第7章', completed:true },
+        // 5/9 周五
+        { date:'2026-05-09', subject:'专业课', duration:180, content:'数据结构：图论算法（Dijkstra、拓扑排序）', completed:true },
+        { date:'2026-05-09', subject:'高数', duration:90, content:'级数收敛判别法', completed:true },
+        { date:'2026-05-09', subject:'英语', duration:60, content:'背单词 + 翻译', completed:true },
+        // 5/10 周六
+        { date:'2026-05-10', subject:'高数', duration:180, content:'幂级数展开 + 傅里叶级数', completed:true },
+        { date:'2026-05-10', subject:'英语', duration:120, content:'真题阅读2016年Text1-2', completed:true },
+        { date:'2026-05-10', subject:'政治', duration:90, content:'毛中特第8章 + 选择题', completed:true },
+        // 5/11 周日
+        { date:'2026-05-11', subject:'高数', duration:120, content:'高数上册综合复习', completed:true },
+        { date:'2026-05-11', subject:'专业课', duration:150, content:'数据结构：动态规划入门', completed:true },
+        { date:'2026-05-11', subject:'英语', duration:90, content:'背单词 + 完形填空', completed:true },
+        // 5/12 周一
+        { date:'2026-05-12', subject:'高数', duration:150, content:'空间解析几何复习', completed:true },
+        { date:'2026-05-12', subject:'英语', duration:120, content:'真题阅读2016年Text3-4', completed:true },
+        { date:'2026-05-12', subject:'政治', duration:60, content:'毛中特第9章', completed:true },
+        // 5/13 周二
+        { date:'2026-05-13', subject:'高数', duration:180, content:'多元函数微分学综合', completed:true },
+        { date:'2026-05-13', subject:'专业课', duration:120, content:'操作系统：进程管理', completed:true },
+        { date:'2026-05-13', subject:'英语', duration:90, content:'背单词 + 新题型', completed:true },
+        // 5/14 周三（今天）
+        { date:'2026-05-14', subject:'高数', duration:90, content:'重积分复习 + 错题整理', completed:true },
+        { date:'2026-05-14', subject:'英语', duration:60, content:'背单词 + 翻译练习', completed:false },
+      ].map((r,i) => ({ ...r, createdAt: new Date(r.date+'T10:00:00').getTime() + i*60000 }));
       localStorage.setItem(STUDY_RECORDS_KEY, JSON.stringify(studyRecords));
+
+      // ========== 每日计划 (4/26 - 5/14) ==========
       const plans = [
         { date:'2026-04-26', items:[
           { time:'08:30-10:30', subject:'高数', task:'复习极限与连续', status:'done' },
@@ -2009,16 +2589,89 @@
           { time:'19:00-20:00', subject:'政治', task:'毛中特选择题', status:'skipped' }
         ]},
         { date:'2026-05-05', items:[
-          { time:'08:30-10:30', subject:'高数', task:'二重积分计算方法', status:'pending' },
-          { time:'11:00-12:00', subject:'英语', task:'背单词 + 翻译练习', status:'pending' },
-          { time:'14:00-15:30', subject:'专业课', task:'查找算法（二分、哈希）', status:'pending' },
-          { time:'16:00-17:00', subject:'政治', task:'毛中特第5章', status:'pending' },
-          { time:'19:00-20:30', subject:'高数', task:'今日错题整理', status:'pending' }
+          { time:'08:30-10:30', subject:'高数', task:'二重积分计算方法 + 极坐标', status:'done' },
+          { time:'11:00-12:00', subject:'英语', task:'背单词 + 翻译练习', status:'done' },
+          { time:'14:00-15:30', subject:'专业课', task:'查找算法（二分、哈希）', status:'done' },
+          { time:'16:00-17:00', subject:'政治', task:'毛中特第5章', status:'skipped' },
+          { time:'19:00-20:30', subject:'高数', task:'今日错题整理', status:'done' }
+        ]},
+        { date:'2026-05-06', items:[
+          { time:'08:30-11:30', subject:'高数', task:'二重积分综合练习', status:'done' },
+          { time:'14:00-15:30', subject:'政治', task:'毛中特第5-6章', status:'done' },
+          { time:'16:00-17:00', subject:'英语', task:'背单词 + 完形填空', status:'done' },
+          { time:'19:00-20:00', subject:'专业课', task:'复习哈希表', status:'skipped' }
+        ]},
+        { date:'2026-05-07', items:[
+          { time:'08:30-10:00', subject:'高数', task:'三重积分入门', status:'done' },
+          { time:'10:30-12:30', subject:'专业课', task:'树与二叉树综合', status:'done' },
+          { time:'14:00-16:00', subject:'英语', task:'真题阅读2015年Text3-4', status:'done' },
+          { time:'19:00-20:00', subject:'政治', task:'毛中特选择题', status:'done' }
+        ]},
+        { date:'2026-05-08', items:[
+          { time:'08:30-10:30', subject:'高数', task:'曲线积分与曲面积分', status:'done' },
+          { time:'11:00-12:30', subject:'英语', task:'背单词 + 新题型', status:'done' },
+          { time:'14:00-15:00', subject:'政治', task:'毛中特第7章', status:'done' },
+          { time:'19:00-20:30', subject:'专业课', task:'图论算法预习', status:'done' }
+        ]},
+        { date:'2026-05-09', items:[
+          { time:'08:30-11:30', subject:'专业课', task:'图论算法（Dijkstra、拓扑排序）', status:'done' },
+          { time:'14:00-15:30', subject:'高数', task:'级数收敛判别法', status:'done' },
+          { time:'16:00-17:00', subject:'英语', task:'背单词 + 翻译', status:'done' },
+          { time:'19:00-20:00', subject:'政治', task:'毛中特第7章选择题', status:'skipped' }
+        ]},
+        { date:'2026-05-10', items:[
+          { time:'08:30-11:30', subject:'高数', task:'幂级数展开 + 傅里叶级数', status:'done' },
+          { time:'14:00-16:00', subject:'英语', task:'真题阅读2016年Text1-2', status:'done' },
+          { time:'16:30-18:00', subject:'政治', task:'毛中特第8章', status:'done' },
+          { time:'19:00-20:00', subject:'专业课', task:'动态规划预习', status:'skipped' }
+        ]},
+        { date:'2026-05-11', items:[
+          { time:'08:30-10:30', subject:'高数', task:'高数上册综合复习', status:'done' },
+          { time:'11:00-13:00', subject:'专业课', task:'动态规划入门', status:'done' },
+          { time:'14:00-15:30', subject:'英语', task:'背单词 + 完形填空', status:'done' },
+          { time:'19:00-20:00', subject:'政治', task:'毛中特第8章选择题', status:'skipped' }
+        ]},
+        { date:'2026-05-12', items:[
+          { time:'08:30-10:30', subject:'高数', task:'空间解析几何复习', status:'done' },
+          { time:'14:00-16:00', subject:'英语', task:'真题阅读2016年Text3-4', status:'done' },
+          { time:'16:30-17:30', subject:'政治', task:'毛中特第9章', status:'done' },
+          { time:'19:00-20:30', subject:'专业课', task:'操作系统预习', status:'done' }
+        ]},
+        { date:'2026-05-13', items:[
+          { time:'08:30-11:30', subject:'高数', task:'多元函数微分学综合', status:'done' },
+          { time:'14:00-16:00', subject:'专业课', task:'进程管理', status:'done' },
+          { time:'16:30-18:00', subject:'英语', task:'背单词 + 新题型', status:'done' },
+          { time:'19:00-20:00', subject:'政治', task:'毛中特选择题', status:'skipped' }
+        ]},
+        { date:'2026-05-14', items:[
+          { time:'08:30-10:00', subject:'高数', task:'重积分复习 + 错题整理', status:'done' },
+          { time:'10:30-11:30', subject:'英语', task:'背单词 + 翻译练习', status:'pending' },
+          { time:'14:00-16:00', subject:'专业课', task:'内存管理与虚拟内存', status:'pending' },
+          { time:'16:30-17:30', subject:'政治', task:'毛中特第10章', status:'pending' },
+          { time:'19:00-20:30', subject:'高数', task:'本周错题回顾', status:'pending' }
         ]}
       ];
       localStorage.setItem(PLANS_KEY, JSON.stringify(plans));
+
+      // ========== 错题本 ==========
+      const mistakes = [
+        { id:'m1', date:'2026-04-27', subject:'高数', question:'求极限 lim(x→0) (sinx-x)/x³', userAnswer:'1/2', correctAnswer:'-1/6', errorType:'计算失误', analysis:'使用洛必达法则或泰勒展开：sinx = x - x³/6 + ...，所以 (sinx-x)/x³ = -1/6', createdAt: new Date('2026-04-27T20:00:00').getTime() },
+        { id:'m2', date:'2026-04-29', subject:'高数', question:'求不定积分 ∫x²eˣdx', userAnswer:'x²eˣ - 2xeˣ + C', correctAnswer:'x²eˣ - 2xeˣ + 2eˣ + C', errorType:'计算失误', analysis:'分部积分两次，第二次漏了常数项 2eˣ', createdAt: new Date('2026-04-29T21:00:00').getTime() },
+        { id:'m3', date:'2026-05-01', subject:'英语', question:'The committee ____ (be) divided in their opinions.', userAnswer:'is', correctAnswer:'are', errorType:'概念混淆', analysis:'committee 作为整体用单数，但强调成员个体意见分歧时用复数', createdAt: new Date('2026-05-01T15:00:00').getTime() },
+        { id:'m4', date:'2026-05-03', subject:'高数', question:'微分方程 y\' + 2xy = x 的通解', userAnswer:'y = Ce^(-x²)', correctAnswer:'y = 1/2 + Ce^(-x²)', errorType:'方法错误', analysis:'一阶线性微分方程，需要用积分因子法，不能忽略特解', createdAt: new Date('2026-05-03T10:00:00').getTime() },
+        { id:'m5', date:'2026-05-05', subject:'专业课', question:'快速排序在最坏情况下的时间复杂度', userAnswer:'O(nlogn)', correctAnswer:'O(n²)', errorType:'概念混淆', analysis:'最坏情况（已排序数组）为O(n²)，平均为O(nlogn)', createdAt: new Date('2026-05-05T15:00:00').getTime() },
+        { id:'m6', date:'2026-05-07', subject:'高数', question:'二重积分 ∫∫(x²+y²)dxdy，D: x²+y²≤4', userAnswer:'8π', correctAnswer:'8π', errorType:'审题不清', analysis:'虽然答案正确，但计算过程用了直角坐标而非极坐标，浪费时间', createdAt: new Date('2026-05-07T20:00:00').getTime() },
+        { id:'m7', date:'2026-05-09', subject:'政治', question:'新民主主义革命的性质是？', userAnswer:'社会主义革命', correctAnswer:'资产阶级民主主义革命', errorType:'概念混淆', analysis:'新民主主义革命虽然由无产阶级领导，但性质仍是资产阶级民主革命', createdAt: new Date('2026-05-09T16:00:00').getTime() },
+        { id:'m8', date:'2026-05-10', subject:'高数', question:'幂级数 Σ(x^n/n!) 的收敛半径', userAnswer:'R=1', correctAnswer:'R=+∞', errorType:'方法错误', analysis:'用比值法：|a_{n+1}/a_n| = |x|/(n+1) → 0，所以收敛半径为无穷大', createdAt: new Date('2026-05-10T21:00:00').getTime() },
+        { id:'m9', date:'2026-05-11', subject:'专业课', question:'Dijkstra算法不能处理什么情况？', userAnswer:'稀疏图', correctAnswer:'负权边', errorType:'概念混淆', analysis:'Dijkstra基于贪心，负权边会导致已确定的最短距离被更新', createdAt: new Date('2026-05-11T16:00:00').getTime() },
+        { id:'m10', date:'2026-05-13', subject:'高数', question:'求偏导数 ∂z/∂x，z = xʸ', userAnswer:'yxʸ⁻¹', correctAnswer:'yxʸ⁻¹ (对x求偏导时y视为常数)', errorType:'审题不清', analysis:'答案正确但需要明确：对x求偏导时y是常数，所以z=xʸ就是幂函数', createdAt: new Date('2026-05-13T20:00:00').getTime() },
+      ];
+      localStorage.setItem(MISTAKES_KEY, JSON.stringify(mistakes));
+
+      // ========== 刷新面板 ==========
       renderPlanPanel(); renderHistoryPlan(); renderStatsPanel();
-      console.log('✅ 7天模拟数据已加载，面板已刷新');
+      if (typeof renderMistakesPanel === 'function') renderMistakesPanel();
+      console.log('✅ 4/26-5/14 模拟数据已加载（19天学习记录 + 计划 + 10道错题）');
     };
   </script>
 </body>
