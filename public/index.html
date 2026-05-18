@@ -972,6 +972,10 @@
       const records = getStudyRecords();
       records.push({ ...r, createdAt: Date.now() });
       localStorage.setItem(STUDY_RECORDS_KEY, JSON.stringify(records));
+      // 自动同步到间隔复习（跳过无意义的内容）
+      if (r.content && r.content !== '番茄钟专注' && r.content !== '快捷记录' && r.content.length > 2) {
+        try { addReviewItem(r.content.substring(0, 50), r.subject, 'study'); } catch(e) {}
+      }
       return records;
     }
     function getStudyStats() {
@@ -1460,7 +1464,7 @@
         const focusMsg = `刚完成一个番茄钟，专注了${FOCUS_MIN}分钟${pomodoro.subject}`;
         addMessage(focusMsg, 'user', true);
         showTyping();
-        const payload = { type: 'chat', text: focusMsg, deviceId, timestamp: Date.now(), memoryContext: getMemoryContext(), plansJson: getPlansJson() };
+        const payload = { type: 'chat', text: focusMsg, deviceId, timestamp: Date.now(), memoryContext: getMemoryContext(), plansJson: getPlansJson(), analyticsJson: getAnalyticsJson() };
         ws.send(JSON.stringify(payload));
       }
     }
@@ -1595,6 +1599,225 @@
       return ctx;
     }
     function getPlansJson() { return JSON.stringify(getPlans()); }
+
+    // ==================== 智能分析数据 ====================
+    function getStudyAnalytics() {
+      const records = getStudyRecords();
+      const plans = getPlans();
+      const mistakes = getMistakes();
+      const profile = getProfile();
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+
+      // 近7天各科目学习时长
+      const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7);
+      const weekAgoStr = weekAgo.toISOString().split('T')[0];
+      const recentRecords = records.filter(r => r.date >= weekAgoStr);
+      const subjectMinutes7d = {};
+      for (const r of recentRecords) {
+        subjectMinutes7d[r.subject] = (subjectMinutes7d[r.subject] || 0) + r.duration;
+      }
+
+      // 近7天每日学习时长趋势
+      const dailyTrend = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now); d.setDate(now.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        const dayMin = records.filter(r => r.date === dateStr).reduce((s, r) => s + r.duration, 0);
+        dailyTrend.push({ date: dateStr, minutes: dayMin });
+      }
+
+      // 近7天计划完成率
+      const recentPlans = plans.filter(p => p.date >= weekAgoStr && p.date <= today);
+      let totalPlanItems = 0, completedItems = 0, skippedItems = 0;
+      for (const p of recentPlans) {
+        for (const item of (p.items || [])) {
+          totalPlanItems++;
+          if (item.status === 'done') completedItems++;
+          if (item.status === 'skipped') skippedItems++;
+        }
+      }
+      const planCompletionRate = totalPlanItems > 0 ? Math.round(completedItems / totalPlanItems * 100) : 0;
+
+      // 各科目计划完成情况
+      const subjectPlanStats = {};
+      for (const p of recentPlans) {
+        for (const item of (p.items || [])) {
+          if (!subjectPlanStats[item.subject]) {
+            subjectPlanStats[item.subject] = { total: 0, done: 0, skipped: 0 };
+          }
+          subjectPlanStats[item.subject].total++;
+          if (item.status === 'done') subjectPlanStats[item.subject].done++;
+          if (item.status === 'skipped') subjectPlanStats[item.subject].skipped++;
+        }
+      }
+
+      // 各科目错题统计
+      const subjectMistakes = {};
+      for (const m of mistakes) {
+        const subj = m.subject || '未分类';
+        if (!subjectMistakes[subj]) subjectMistakes[subj] = { count: 0, errorTypes: {} };
+        subjectMistakes[subj].count++;
+        const et = m.errorType || '未分类';
+        subjectMistakes[subj].errorTypes[et] = (subjectMistakes[subj].errorTypes[et] || 0) + 1;
+      }
+
+      // 各科目最近一次学习距今天数
+      const subjectLastStudy = {};
+      for (const r of records) {
+        if (!subjectLastStudy[r.subject] || r.date > subjectLastStudy[r.subject]) {
+          subjectLastStudy[r.subject] = r.date;
+        }
+      }
+      const subjectDaysSinceLastStudy = {};
+      for (const [subj, lastDate] of Object.entries(subjectLastStudy)) {
+        const diff = Math.floor((now - new Date(lastDate)) / 86400000);
+        subjectDaysSinceLastStudy[subj] = diff;
+      }
+
+      // 距考试天数
+      let daysToExam = null;
+      if (profile?.examDate) {
+        daysToExam = Math.ceil((new Date(profile.examDate) - now) / 86400000);
+      }
+
+      return {
+        subjectMinutes7d,
+        dailyTrend,
+        planCompletionRate,
+        totalPlanItems,
+        completedItems,
+        skippedItems,
+        subjectPlanStats,
+        subjectMistakes,
+        subjectDaysSinceLastStudy,
+        daysToExam,
+        stage: profile?.stage || null,
+        totalStudyDays: new Set(records.map(r => r.date)).size,
+      };
+    }
+
+    function getSubjectAnalytics() {
+      const records = getStudyRecords();
+      const mistakes = getMistakes();
+      const plans = getPlans();
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+      const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7);
+      const weekAgoStr = weekAgo.toISOString().split('T')[0];
+
+      // 收集所有出现过的科目
+      const allSubjects = new Set();
+      records.forEach(r => allSubjects.add(r.subject));
+      mistakes.forEach(m => allSubjects.add(m.subject || '未分类'));
+      plans.forEach(p => (p.items || []).forEach(i => allSubjects.add(i.subject)));
+
+      const result = {};
+      for (const subj of allSubjects) {
+        // 近7天学习时长
+        const recentMin = records.filter(r => r.subject === subj && r.date >= weekAgoStr)
+          .reduce((s, r) => s + r.duration, 0);
+
+        // 最近一次学习
+        const subjRecords = records.filter(r => r.subject === subj);
+        const lastStudyDate = subjRecords.length > 0
+          ? subjRecords.sort((a, b) => b.date.localeCompare(a.date))[0].date
+          : null;
+        const daysSinceLastStudy = lastStudyDate
+          ? Math.floor((now - new Date(lastStudyDate)) / 86400000)
+          : null;
+
+        // 错题统计
+        const subjMistakes = mistakes.filter(m => (m.subject || '未分类') === subj);
+        const errorTypeDist = {};
+        for (const m of subjMistakes) {
+          const et = m.errorType || '未分类';
+          errorTypeDist[et] = (errorTypeDist[et] || 0) + 1;
+        }
+
+        // 近7天计划完成率
+        const recentPlans = plans.filter(p => p.date >= weekAgoStr && p.date <= today);
+        let planTotal = 0, planDone = 0;
+        for (const p of recentPlans) {
+          for (const item of (p.items || []).filter(i => i.subject === subj)) {
+            planTotal++;
+            if (item.status === 'done') planDone++;
+          }
+        }
+
+        result[subj] = {
+          recentStudyMinutes7d: recentMin,
+          lastStudyDate,
+          daysSinceLastStudy,
+          mistakeCount: subjMistakes.length,
+          errorTypeDist,
+          planTotal7d: planTotal,
+          planDone7d: planDone,
+          planCompletionRate7d: planTotal > 0 ? Math.round(planDone / planTotal * 100) : null,
+        };
+      }
+      return result;
+    }
+
+    function getLearningPattern() {
+      const records = getStudyRecords();
+      const now = new Date();
+      if (records.length < 3) return null;
+
+      // 时段统计：上午(6-12)、下午(12-18)、晚上(18-24)
+      const slotMinutes = { '上午': [], '下午': [], '晚上': [] };
+      for (const r of records) {
+        const hour = r.startTime ? new Date(r.startTime).getHours() : 12;
+        const slot = hour < 12 ? '上午' : hour < 18 ? '下午' : '晚上';
+        slotMinutes[slot].push(r.duration);
+      }
+      const slotAvg = {};
+      for (const [slot, mins] of Object.entries(slotMinutes)) {
+        slotAvg[slot] = mins.length > 0 ? Math.round(mins.reduce((a, b) => a + b, 0) / mins.length) : 0;
+      }
+      const timeSlotRanking = Object.entries(slotAvg)
+        .map(([slot, avgMin]) => ({ slot, avgMin }))
+        .sort((a, b) => b.avgMin - a.avgMin);
+      const bestTimeSlot = timeSlotRanking[0]?.slot || '上午';
+
+      // 平均专注周期
+      const avgFocusMinutes = Math.round(records.reduce((s, r) => s + r.duration, 0) / records.length);
+
+      // 疲劳检测：近3天 vs 前4天
+      const today = now.toISOString().split('T')[0];
+      const threeDaysAgo = new Date(now); threeDaysAgo.setDate(now.getDate() - 3);
+      const sevenDaysAgo = new Date(now); sevenDaysAgo.setDate(now.getDate() - 7);
+      const recent3 = records.filter(r => r.date >= threeDaysAgo.toISOString().split('T')[0] && r.date <= today)
+        .reduce((s, r) => s + r.duration, 0);
+      const prev4 = records.filter(r => r.date >= sevenDaysAgo.toISOString().split('T')[0] && r.date < threeDaysAgo.toISOString().split('T')[0])
+        .reduce((s, r) => s + r.duration, 0);
+      const avgRecent = recent3 / 3;
+      const avgPrev = prev4 / 4;
+      const fatigueDetected = avgPrev > 0 && avgRecent < avgPrev * 0.7;
+      const fatigueDetail = fatigueDetected
+        ? `近3天日均${Math.round(avgRecent)}分钟，前4天日均${Math.round(avgPrev)}分钟，下降${Math.round((1 - avgRecent / avgPrev) * 100)}%`
+        : '';
+
+      // 各科目单位时间产出（完成率/学习小时数）
+      const subjectEfficiency = {};
+      for (const [subj, info] of Object.entries(getSubjectAnalytics())) {
+        const hours = (info.recentStudyMinutes7d || 0) / 60;
+        const rate = info.planCompletionRate7d;
+        if (hours > 0 && rate !== null) {
+          subjectEfficiency[subj] = Math.round(rate / hours * 10) / 10;
+        }
+      }
+
+      return { bestTimeSlot, avgFocusMinutes, subjectEfficiency, fatigueDetected, fatigueDetail, timeSlotRanking };
+    }
+
+    function getAnalyticsJson() {
+      return JSON.stringify({
+        study: getStudyAnalytics(),
+        subjects: getSubjectAnalytics(),
+        learningPattern: getLearningPattern(),
+      });
+    }
 
     // ==================== 错题本管理 ====================
     function getMistakes() {
@@ -1731,7 +1954,8 @@
         type: 'chat', text, deviceId, timestamp: Date.now(),
         memoryContext: getMemoryContext(),
         plansJson: getPlansJson(),
-        weeklyRecordsJson: getWeeklyRecordsJson()
+        weeklyRecordsJson: getWeeklyRecordsJson(),
+        analyticsJson: getAnalyticsJson()
       };
       ws.send(JSON.stringify(payload));
     }
@@ -2000,7 +2224,7 @@
           if (message.type==='chat'&&message.text) {
             hideTyping(); addMessage(message.text, 'assistant', true);
             try { if (message.planData?.items) { savePlan(message.planData); renderPlanPanel(); renderHistoryPlan(); } } catch(e) { console.error('[Plan] save error:', e); }
-            try { if (message.mistakeData) { addMistake(message.mistakeData); renderMistakesPanel(); } } catch(e) { console.error('[Mistake] save error:', e); }
+            try { if (message.mistakeData) { addMistake(message.mistakeData); renderMistakesPanel(); addReviewItem((message.mistakeData.question||'').substring(0,50), message.mistakeData.subject||'未分类', 'mistake'); } } catch(e) { console.error('[Mistake] save error:', e); }
             try { if (message.intent === 'review_weekly') { weeklyReportCache = message.text; weeklyReportLoading = false; renderWeeklyReportPanel(); } } catch(e) { console.error('[周报] render error:', e); }
           }
         } catch(e) { console.error('[WS] message error:', e); hideTyping(); }
@@ -2151,7 +2375,7 @@
           renderStatsPanel();
         } catch(e) { console.error('[sendMessage] extractAndSave error:', e); }
       }
-      const payload = { type:'chat', text: text || '', deviceId, timestamp:Date.now(), memoryContext:getMemoryContext(), plansJson:getPlansJson() };
+      const payload = { type:'chat', text: text || '', deviceId, timestamp:Date.now(), memoryContext:getMemoryContext(), plansJson:getPlansJson(), analyticsJson:getAnalyticsJson() };
       if (imgBase64) payload.imageBase64 = imgBase64;
       ws.send(JSON.stringify(payload));
       messageInput.value=''; messageInput.focus();
@@ -2321,6 +2545,144 @@
     messageInput.addEventListener('keypress', e => { if(e.key==='Enter') sendMessage(); });
     document.getElementById('mobileSidebarBtn').addEventListener('click', openSidebarOverlay);
 
+    // ==================== 间隔复习引擎（SM-2算法）====================
+    const REVIEW_ITEMS_KEY = 'kaoyan-review-items';
+
+    function getReviewItems() {
+      try { return JSON.parse(localStorage.getItem(REVIEW_ITEMS_KEY) || '[]'); } catch { return []; }
+    }
+    function saveReviewItems(items) {
+      localStorage.setItem(REVIEW_ITEMS_KEY, JSON.stringify(items));
+    }
+
+    // 添加或更新复习项（学完新知识或做完错题时调用）
+    function addReviewItem(topic, subject, source) {
+      const items = getReviewItems();
+      const existing = items.find(i => i.topic === topic && i.subject === subject);
+      if (existing) return; // 已存在不重复添加
+      const today = new Date().toISOString().split('T')[0];
+      items.push({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        topic,
+        subject,
+        source, // 'study' | 'mistake'
+        firstLearnDate: today,
+        lastReviewDate: today,
+        reviewCount: 0,
+        easeFactor: 2.5,  // SM-2 初始难度系数
+        interval: 1,       // 初始间隔1天
+        nextReviewDate: today, // 首次复习就是当天
+        createdAt: Date.now(),
+      });
+      saveReviewItems(items);
+    }
+
+    // 标记复习完成，根据质量评分更新SM-2参数
+    // quality: 0-5，3及以上为通过
+    function markReviewDone(id, quality) {
+      const items = getReviewItems();
+      const item = items.find(i => i.id === id);
+      if (!item) return;
+      const today = new Date().toISOString().split('T')[0];
+
+      // SM-2 核心算法
+      let { easeFactor, interval, reviewCount } = item;
+      if (quality >= 3) {
+        // 通过
+        if (reviewCount === 0) interval = 1;
+        else if (reviewCount === 1) interval = 3;
+        else interval = Math.round(interval * easeFactor);
+        reviewCount++;
+      } else {
+        // 未通过，重置
+        interval = 1;
+        reviewCount = 0;
+      }
+      // 更新难度系数
+      easeFactor = Math.max(1.3, easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)));
+
+      // 计算下次复习日期
+      const nextDate = new Date();
+      nextDate.setDate(nextDate.getDate() + interval);
+
+      item.easeFactor = Math.round(easeFactor * 100) / 100;
+      item.interval = interval;
+      item.reviewCount = reviewCount;
+      item.lastReviewDate = today;
+      item.nextReviewDate = nextDate.toISOString().split('T')[0];
+
+      saveReviewItems(items);
+    }
+
+    // 获取今天需要复习的知识点
+    function getDueReviewItems() {
+      const today = new Date().toISOString().split('T')[0];
+      return getReviewItems().filter(i => i.nextReviewDate <= today);
+    }
+
+    // 从学习记录和错题本自动同步复习项
+    function syncReviewItems() {
+      const records = getStudyRecords();
+      const mistakes = getMistakes();
+      const items = getReviewItems();
+      const existingKeys = new Set(items.map(i => `${i.topic}|${i.subject}`));
+
+      // 从学习记录中提取（最近30天的内容）
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+      for (const r of records) {
+        if (r.date < thirtyDaysAgoStr || !r.content) continue;
+        const topic = r.content.substring(0, 50).trim();
+        if (!topic) continue;
+        const key = `${topic}|${r.subject}`;
+        if (!existingKeys.has(key)) {
+          existingKeys.add(key);
+          const today = new Date().toISOString().split('T')[0];
+          items.push({
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            topic,
+            subject: r.subject,
+            source: 'study',
+            firstLearnDate: r.date,
+            lastReviewDate: r.date,
+            reviewCount: 0,
+            easeFactor: 2.5,
+            interval: 1,
+            nextReviewDate: today,
+            createdAt: Date.now(),
+          });
+        }
+      }
+
+      // 从错题本中提取
+      for (const m of mistakes) {
+        const topic = (m.question || '').substring(0, 50).trim();
+        if (!topic) continue;
+        const key = `${topic}|${m.subject || '未分类'}`;
+        if (!existingKeys.has(key)) {
+          existingKeys.add(key);
+          const today = new Date().toISOString().split('T')[0];
+          items.push({
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            topic,
+            subject: m.subject || '未分类',
+            source: 'mistake',
+            firstLearnDate: m.date,
+            lastReviewDate: m.date,
+            reviewCount: 0,
+            easeFactor: 2.5,
+            interval: 1,
+            nextReviewDate: today,
+            createdAt: Date.now(),
+          });
+        }
+      }
+
+      saveReviewItems(items);
+    }
+
     // ==================== 主动提醒 ====================
     function wasShownToday(key) { return localStorage.getItem(`kaoyan-reminder-${key}-${new Date().toISOString().split('T')[0]}`)==='1'; }
     function markShownToday(key) { localStorage.setItem(`kaoyan-reminder-${key}-${new Date().toISOString().split('T')[0]}`, '1'); }
@@ -2341,6 +2703,78 @@
         const stale=Object.entries(last).filter(([_,d])=>Math.floor((Date.now()-new Date(d).getTime())/86400000)>=3);
         if(stale.length>0){markShownToday('stale');all.push(`${stale.map(([s])=>s).join('、')} 已经3天以上没学了！`);}
       }
+      // 间隔复习提醒
+      syncReviewItems();
+      const dueItems = getDueReviewItems();
+      if (dueItems.length > 0 && !wasShownToday('review')) {
+        markShownToday('review');
+        const grouped = {};
+        for (const item of dueItems) {
+          if (!grouped[item.subject]) grouped[item.subject] = [];
+          grouped[item.subject].push(item);
+        }
+        const summary = Object.entries(grouped)
+          .map(([s, items]) => `${s}${items.length}个知识点`)
+          .join('、');
+        all.push(`📚 今天有 ${dueItems.length} 个知识点需要复习（${summary}），间隔复习效果最佳！`);
+      }
+
+      // ==================== 智能预警 ====================
+      const analytics = getStudyAnalytics();
+      const subjectAnalytics = getSubjectAnalytics();
+      const pattern = getLearningPattern();
+
+      // 进度预警：按当前速度能否覆盖考点
+      if (analytics.daysToExam !== null && analytics.daysToExam > 0 && !wasShownToday('progress-warn')) {
+        const subjectCount = Object.keys(subjectAnalytics).length || 4;
+        const avgDaysPerSubject = subjectCount > 0 ? Math.ceil(analytics.daysToExam / subjectCount) : 0;
+        const avgCompletion = Object.values(subjectAnalytics)
+          .filter(s => s.planCompletionRate7d !== null)
+          .reduce((sum, s, _, arr) => sum + s.planCompletionRate7d / arr.length, 0);
+        if (avgCompletion < 60 && analytics.daysToExam < subjectCount * 30) {
+          markShownToday('progress-warn');
+          all.push(`⚠️ 进度预警：距考试${analytics.daysToExam}天，当前各科平均完成率${Math.round(avgCompletion)}%，按这个速度可能来不及覆盖所有考点，建议优先攻克高频考点。`);
+        }
+      }
+
+      // 偏科预警：某科学习时长占比远低于预期
+      if (!wasShownToday('bias-warn')) {
+        const totalMin7d = Object.values(analytics.subjectMinutes7d).reduce((s, m) => s + m, 0);
+        if (totalMin7d > 0) {
+          const biased = [];
+          for (const [subj, min] of Object.entries(analytics.subjectMinutes7d)) {
+            const ratio = min / totalMin7d;
+            if (ratio < 0.1 && totalMin7d > 120) {
+              biased.push(`${subj}(${Math.round(ratio * 100)}%)`);
+            }
+          }
+          if (biased.length > 0) {
+            markShownToday('bias-warn');
+            all.push(`📊 偏科预警：${biased.join('、')} 近7天学习时间占比偏低，建议适当增加练习。`);
+          }
+        }
+      }
+
+      // 效率预警：某科错题增加但学习时长也增加
+      if (!wasShownToday('efficiency-warn')) {
+        const inefficient = [];
+        for (const [subj, info] of Object.entries(subjectAnalytics)) {
+          if (info.mistakeCount >= 3 && info.recentStudyMinutes7d >= 120 && info.planCompletionRate7d !== null && info.planCompletionRate7d < 50) {
+            inefficient.push(subj);
+          }
+        }
+        if (inefficient.length > 0) {
+          markShownToday('efficiency-warn');
+          all.push(`🔄 效率预警：${inefficient.join('、')} 学习时间不少但错题仍多，可能需要调整学习方法，试试回顾基础概念或换个做题思路。`);
+        }
+      }
+
+      // 心理预警：连续多天学习强度骤降
+      if (pattern?.fatigueDetected && !wasShownToday('fatigue-warn')) {
+        markShownToday('fatigue-warn');
+        all.push(`💙 休息提醒：${pattern.fatigueDetail}。最近学习强度下降了，适当休息后继续加油，保持节奏比冲刺更重要！`);
+      }
+
       if(all.length>0) setTimeout(()=>addMessage('📌 今日提醒：\n\n'+all.join('\n'),'assistant',true), 800);
     }
 
@@ -2626,7 +3060,7 @@
     // ==================== 模拟数据（调试用） ====================
     window.generateMockData = function() {
       // ========== 用户档案 ==========
-      const profile = { name:'小吴', targetSchool:'浙江大学', targetMajor:'计算机科学与技术', examDate:'2026-12-20', stage:'基础', weakPoints:['高数','线性代数'], undergraduateSchool:'杭州电子科技大学', studyPreference:'上午高数，下午专业课，晚上英语', createdAt: new Date('2026-04-26').getTime() };
+      const profile = { name:'小吴', targetSchool:'浙江大学', targetMajor:'计算机科学与技术', examDate:'2026-12-20', stage:'基础', weakPoints:['高数','线性代数'], undergraduateSchool:'广州商学院', studyPreference:'上午高数，下午专业课，晚上英语', createdAt: new Date('2026-04-26').getTime() };
       localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
 
       // ========== 学习记录 (4/26 - 5/14) ==========
@@ -2703,9 +3137,21 @@
         { date:'2026-05-13', subject:'高数', duration:180, content:'多元函数微分学综合', completed:true },
         { date:'2026-05-13', subject:'专业课', duration:120, content:'操作系统：进程管理', completed:true },
         { date:'2026-05-13', subject:'英语', duration:90, content:'背单词 + 新题型', completed:true },
-        // 5/14 周三（今天）
+        // 5/14 周三
         { date:'2026-05-14', subject:'高数', duration:90, content:'重积分复习 + 错题整理', completed:true },
         { date:'2026-05-14', subject:'英语', duration:60, content:'背单词 + 翻译练习', completed:false },
+        // 5/15 周四
+        { date:'2026-05-15', subject:'高数', duration:150, content:'三重积分计算方法 + 球坐标变换', completed:true },
+        { date:'2026-05-15', subject:'英语', duration:90, content:'真题阅读2016年Text3-4 + 作文素材积累', completed:true },
+        { date:'2026-05-15', subject:'政治', duration:60, content:'毛中特第10章 + 选择题', completed:true },
+        // 5/16 周五
+        { date:'2026-05-16', subject:'专业课', duration:120, content:'操作系统：进程调度算法与死锁', completed:true },
+        { date:'2026-05-16', subject:'高数', duration:90, content:'二重积分 + 三重积分综合练习', completed:true },
+        { date:'2026-05-16', subject:'英语', duration:60, content:'背单词 + 翻译练习', completed:true },
+        // 5/17 周六
+        { date:'2026-05-17', subject:'高数', duration:120, content:'曲线积分入门（第一型、第二型）', completed:true },
+        { date:'2026-05-17', subject:'英语', duration:120, content:'真题阅读2017年Text1-2', completed:true },
+        { date:'2026-05-17', subject:'政治', duration:90, content:'毛中特第9-10章选择题 + 错题回顾', completed:true },
       ].map((r,i) => ({ ...r, createdAt: new Date(r.date+'T10:00:00').getTime() + i*60000 }));
       localStorage.setItem(STUDY_RECORDS_KEY, JSON.stringify(studyRecords));
 
@@ -2828,6 +3274,24 @@
           { time:'14:00-16:00', subject:'专业课', task:'内存管理与虚拟内存', status:'pending' },
           { time:'16:30-17:30', subject:'政治', task:'毛中特第10章', status:'pending' },
           { time:'19:00-20:30', subject:'高数', task:'本周错题回顾', status:'pending' }
+        ]},
+        { date:'2026-05-15', items:[
+          { time:'08:30-11:00', subject:'高数', task:'三重积分计算方法 + 球坐标', status:'done' },
+          { time:'14:00-15:30', subject:'英语', task:'真题阅读2016年Text3-4 + 作文素材', status:'done' },
+          { time:'16:00-17:00', subject:'政治', task:'毛中特第10章 + 选择题', status:'done' },
+          { time:'19:00-20:00', subject:'专业课', task:'复习虚拟内存笔记', status:'skipped' }
+        ]},
+        { date:'2026-05-16', items:[
+          { time:'08:30-10:30', subject:'专业课', task:'进程调度算法与死锁', status:'done' },
+          { time:'11:00-12:30', subject:'高数', task:'重积分综合练习', status:'done' },
+          { time:'14:00-15:00', subject:'英语', task:'背单词 + 翻译练习', status:'done' },
+          { time:'16:00-17:00', subject:'政治', task:'毛中特选择题', status:'skipped' }
+        ]},
+        { date:'2026-05-17', items:[
+          { time:'08:30-10:30', subject:'高数', task:'曲线积分入门', status:'done' },
+          { time:'14:00-16:00', subject:'英语', task:'真题阅读2017年Text1-2', status:'done' },
+          { time:'16:30-18:00', subject:'政治', task:'毛中特选择题 + 错题回顾', status:'done' },
+          { time:'19:00-20:00', subject:'专业课', task:'复习死锁笔记', status:'skipped' }
         ]}
       ];
       localStorage.setItem(PLANS_KEY, JSON.stringify(plans));
@@ -2844,13 +3308,15 @@
         { id:'m8', date:'2026-05-10', subject:'高数', question:'幂级数 Σ(x^n/n!) 的收敛半径', userAnswer:'R=1', correctAnswer:'R=+∞', errorType:'方法错误', analysis:'用比值法：|a_{n+1}/a_n| = |x|/(n+1) → 0，所以收敛半径为无穷大', createdAt: new Date('2026-05-10T21:00:00').getTime() },
         { id:'m9', date:'2026-05-11', subject:'专业课', question:'Dijkstra算法不能处理什么情况？', userAnswer:'稀疏图', correctAnswer:'负权边', errorType:'概念混淆', analysis:'Dijkstra基于贪心，负权边会导致已确定的最短距离被更新', createdAt: new Date('2026-05-11T16:00:00').getTime() },
         { id:'m10', date:'2026-05-13', subject:'高数', question:'求偏导数 ∂z/∂x，z = xʸ', userAnswer:'yxʸ⁻¹', correctAnswer:'yxʸ⁻¹ (对x求偏导时y视为常数)', errorType:'审题不清', analysis:'答案正确但需要明确：对x求偏导时y是常数，所以z=xʸ就是幂函数', createdAt: new Date('2026-05-13T20:00:00').getTime() },
+        { id:'m11', date:'2026-05-15', subject:'高数', question:'用球坐标计算 ∫∫∫(x²+y²+z²)dV，Ω: x²+y²+z²≤1', userAnswer:'4π/3', correctAnswer:'4π/5', errorType:'方法错误', analysis:'球坐标变换时漏了雅可比行列式 r²sinφ，被积函数 r² 乘以 r²sinφ 后积分得 4π/5', createdAt: new Date('2026-05-15T20:00:00').getTime() },
+        { id:'m12', date:'2026-05-17', subject:'高数', question:'计算 ∮_L (x²+y²)dx + (x-y)dy，L为单位圆逆时针', userAnswer:'直接参数化计算', correctAnswer:'用格林公式：∬(1-2y)dxdy = π', errorType:'方法错误', analysis:'闭合曲线的第二型曲线积分应优先考虑格林公式，参数化计算虽然可行但容易出错且耗时', createdAt: new Date('2026-05-17T21:00:00').getTime() },
       ];
       localStorage.setItem(MISTAKES_KEY, JSON.stringify(mistakes));
 
       // ========== 刷新面板 ==========
       renderPlanPanel(); renderHistoryPlan(); renderStatsPanel();
       if (typeof renderMistakesPanel === 'function') renderMistakesPanel();
-      console.log('✅ 4/26-5/14 模拟数据已加载（19天学习记录 + 计划 + 10道错题）');
+      console.log('✅ 4/26-5/17 模拟数据已加载（22天学习记录 + 计划 + 12道错题）');
     };
   </script>
 </body>

@@ -71,7 +71,8 @@ export async function handlePlanIntent(
   message: string,
   intent: IntentResult,
   client: DeepSeekClient,
-  existingPlanJson?: string
+  existingPlanJson?: string,
+  analyticsJson?: string
 ): Promise<PlanResponse> {
   const subIntent = intent.subIntent;
 
@@ -88,7 +89,7 @@ export async function handlePlanIntent(
           }
         } catch {}
       }
-      return await createPlan(message, intent, client);
+      return await createPlan(message, intent, client, analyticsJson);
     }
 
     case 'plan_query':
@@ -108,7 +109,8 @@ export async function handlePlanIntent(
 async function createPlan(
   message: string,
   intent: IntentResult,
-  client: DeepSeekClient
+  client: DeepSeekClient,
+  analyticsJson?: string
 ): Promise<PlanResponse> {
   const data = intent.extractedData;
   let targetDate = '';
@@ -127,7 +129,106 @@ async function createPlan(
     targetDate = new Date().toISOString().split('T')[0];
   }
 
-  const prompt = `${PLAN_CREATE_PROMPT}\n\n【用户需求】${message}\n【目标日期】${targetDate}\n${data.subject ? `【指定科目】${data.subject}` : ''}`;
+  // 构建数据驱动的分析上下文
+  let analyticsContext = '';
+  if (analyticsJson) {
+    try {
+      const analytics = JSON.parse(analyticsJson);
+      const { study, subjects } = analytics;
+
+      analyticsContext = '\n【用户学习数据分析】\n';
+
+      // 距考试天数和阶段
+      if (study.daysToExam !== null) {
+        analyticsContext += `距考试还有${study.daysToExam}天`;
+        if (study.stage) analyticsContext += `，当前阶段：${study.stage}`;
+        analyticsContext += '\n';
+      }
+
+      // 近7天各科学习时长
+      const subjectEntries = Object.entries(study.subjectMinutes7d as Record<string, number>);
+      if (subjectEntries.length > 0) {
+        analyticsContext += '近7天各科学习时长：' +
+          subjectEntries.map(([s, m]) => `${s}${Math.round((m as number) / 60)}h`).join('、') + '\n';
+      }
+
+      // 各科计划完成率
+      const planStats = Object.entries(study.subjectPlanStats as Record<string, any>);
+      if (planStats.length > 0) {
+        analyticsContext += '近7天各科计划完成率：' +
+          planStats.map(([s, st]) => {
+            const rate = st.total > 0 ? Math.round(st.done / st.total * 100) : 0;
+            return `${s}${rate}%`;
+          }).join('、') + '\n';
+      }
+
+      // 各科错题情况
+      const mistakeEntries = Object.entries(study.subjectMistakes as Record<string, any>);
+      if (mistakeEntries.length > 0) {
+        analyticsContext += '各科错题数量：' +
+          mistakeEntries.map(([s, m]) => `${s}${(m as any).count}道`).join('、') + '\n';
+        // 最常见的错误类型
+        for (const [s, m] of mistakeEntries) {
+          const types = Object.entries((m as any).errorTypes || {});
+          if (types.length > 0) {
+            const topType = types.sort((a, b) => (b[1] as number) - (a[1] as number))[0];
+            analyticsContext += `  ${s}主要错误类型：${topType[0]}\n`;
+          }
+        }
+      }
+
+      // 各科距上次学习天数（超过2天的特别提醒）
+      const staleEntries = Object.entries(study.subjectDaysSinceLastStudy as Record<string, number>)
+        .filter(([_, days]) => (days as number) >= 2);
+      if (staleEntries.length > 0) {
+        analyticsContext += '需要关注的科目（距上次学习≥2天）：' +
+          staleEntries.map(([s, d]) => `${s}${d}天未学`).join('、') + '\n';
+      }
+
+      // 给LLM的智能调度建议
+      analyticsContext += '\n【智能调度要求】\n';
+      analyticsContext += '根据以上数据，请遵循以下调度策略：\n';
+
+      // 找出弱项科目（错题多、完成率低、长时间未学）
+      const weakSubjects: string[] = [];
+      for (const [s, info] of Object.entries(subjects as Record<string, any>)) {
+        if (info.mistakeCount >= 3) weakSubjects.push(s);
+        if (info.planCompletionRate7d !== null && info.planCompletionRate7d < 50) weakSubjects.push(s);
+        if (info.daysSinceLastStudy !== null && info.daysSinceLastStudy >= 3) weakSubjects.push(s);
+      }
+      const uniqueWeak = [...new Set(weakSubjects)];
+      if (uniqueWeak.length > 0) {
+        analyticsContext += `- 弱项科目（${uniqueWeak.join('、')}）需要增加学习时间\n`;
+      }
+
+      // 找出高完成率科目（可以适当减少，腾出时间给弱项）
+      const strongSubjects: string[] = [];
+      for (const [s, info] of Object.entries(subjects as Record<string, any>)) {
+        if (info.planCompletionRate7d !== null && info.planCompletionRate7d >= 80 && info.mistakeCount <= 1) {
+          strongSubjects.push(s);
+        }
+      }
+      if (strongSubjects.length > 0) {
+        analyticsContext += `- 优势科目（${strongSubjects.join('、')}）可适当减少时间，腾出给弱项\n`;
+      }
+
+      // 如果某科错误类型集中在计算失误，建议安排练习而非新知识
+      for (const [s, info] of Object.entries(subjects as Record<string, any>)) {
+        const types = info.errorTypeDist || {};
+        if (types['计算失误'] >= 3) {
+          analyticsContext += `- ${s}计算失误较多，建议安排练习巩固而非新内容\n`;
+        }
+        if (types['概念混淆'] >= 3) {
+          analyticsContext += `- ${s}概念混淆较多，建议安排概念梳理和对比复习\n`;
+        }
+      }
+
+    } catch (e) {
+      // 解析失败不影响计划生成
+    }
+  }
+
+  const prompt = `${PLAN_CREATE_PROMPT}\n\n【用户需求】${message}\n【目标日期】${targetDate}\n${data.subject ? `【指定科目】${data.subject}` : ''}${analyticsContext}`;
 
   try {
     const response = await client.simpleChat(prompt);

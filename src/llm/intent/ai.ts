@@ -40,6 +40,7 @@ const INTENT_PROMPT = `你是"考研小管家"的意图识别模块。请分析�
 | review | review_mistake_query | 查看错题 | "看看我的错题"、"高数有哪些错题" |
 | review | review_mistake_review | 错题分析 | "分析我的错题模式"、"错题有什么规律" |
 | review | review_weekly | 每周学习报告 | "周报"、"本周学习总结"、"这周学了什么"、"学习报告" |
+| analytics | analytics_pattern | 学习模式分析 | "分析我的学习模式"、"我的学习效率怎么样"、"学习建议"、"怎么提高效率" |
 | chat | chat_greeting | 问候 | "你好"（较长的问候） |
 | chat | chat_chat | 闲聊/倾诉 | "考研好累啊"、"今天状态不错" |
 | chat | chat_comfort | 焦虑安抚 | "感觉来不及了"、"考不上怎么办" |

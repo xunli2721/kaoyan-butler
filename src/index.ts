@@ -18,6 +18,7 @@ import { handleReviewIntent } from './llm/review.js';
 import { handleEmotionIntent } from './llm/emotion.js';
 import { handleMistakeIntent } from './llm/mistake.js';
 import { handleWeeklyReportIntent } from './llm/weekly-report.js';
+import { handleAnalyticsIntent } from './llm/analytics.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,6 +52,7 @@ interface Message {
   mistakeData?: any;       // 返回给前端的结构化错题数据
   imageBase64?: string;    // 前端传来的图片 base64
   weeklyRecordsJson?: string; // 前端传来的本周学习记录数据
+  analyticsJson?: string;  // 前端传来的智能分析数据
 }
 
 wss.on('connection', (ws: WebSocket) => {
@@ -189,7 +191,7 @@ async function handleMessage(ws: WebSocket, message: Message, connectionId: stri
           if (subIntent.startsWith('plan_') && result.intent) {
             console.log(`[计划] 处理意图: ${subIntent}`);
             const planResult = await handlePlanIntent(
-              text, result.intent, deepSeekClient, message.plansJson
+              text, result.intent, deepSeekClient, message.plansJson, message.analyticsJson
             );
             sendMessage(ws, {
               type: 'chat',
@@ -239,11 +241,24 @@ async function handleMessage(ws: WebSocket, message: Message, connectionId: stri
               intent: subIntent,
             });
             console.log('[周报] 响应已发送');
+          } else if (subIntent.startsWith('analytics_') && result.intent) {
+            // 学习分析：路由到专用analytics处理器
+            console.log(`[Analytics] 处理意图: ${subIntent}`);
+            const analyticsResult = await handleAnalyticsIntent(
+              text, result.intent, deepSeekClient, message.analyticsJson
+            );
+            sendMessage(ws, {
+              type: 'chat',
+              text: analyticsResult.text,
+              timestamp: Date.now(),
+              intent: subIntent,
+            });
+            console.log('[Analytics] 响应已发送');
           } else if (subIntent.startsWith('review_') && result.intent) {
             // 复习提醒：路由到专用review处理器
             console.log(`[Review] 处理意图: ${subIntent}`);
             const reviewResult = await handleReviewIntent(
-              text, result.intent, deepSeekClient, message.memoryContext
+              text, result.intent, deepSeekClient, message.memoryContext, message.analyticsJson
             );
             sendMessage(ws, {
               type: 'chat',
