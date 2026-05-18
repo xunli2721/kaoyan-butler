@@ -282,6 +282,33 @@
       .formula-modal-left { border-right: none; border-bottom: 1px solid var(--border,#eee); }
     }
 
+    /* Quick record modal */
+    .quick-record-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center; }
+    .quick-record-overlay.open { display: flex; }
+    .quick-record-modal { background: var(--surface,#fffcf7); border-radius: 14px; width: 92%; max-width: 480px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 12px 40px rgba(0,0,0,0.15); overflow: hidden; }
+    .quick-record-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border,#eee); }
+    .quick-record-header span { font-size: 15px; font-weight: 600; }
+    .quick-record-close { border: none; background: none; font-size: 20px; cursor: pointer; color: var(--text-secondary,#888); padding: 4px; }
+    .quick-record-body { padding: 14px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+    .qr-subject-card { padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border,#eee); background: var(--bg,#f5f0e8); }
+    .qr-subject-label { font-size: 13px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .qr-subject-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .qr-time-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .qr-time-btn { padding: 5px 12px; border-radius: 16px; border: 1px solid var(--border,#ddd); background: var(--surface,#fffcf7); font-size: 12px; cursor: pointer; transition: all 0.15s; color: var(--text-secondary,#666); }
+    .qr-time-btn:hover { border-color: var(--accent,#4a7dff); color: var(--accent,#4a7dff); }
+    .qr-time-btn.selected { background: var(--accent,#4a7dff); color: #fff; border-color: var(--accent,#4a7dff); }
+    .qr-custom-input { width: 52px; padding: 4px 8px; border: 1px solid var(--border,#ddd); border-radius: 8px; font-size: 12px; text-align: center; outline: none; background: var(--surface,#fffcf7); color: var(--text-primary,#333); }
+    .qr-custom-input:focus { border-color: var(--accent,#4a7dff); }
+    .qr-custom-label { font-size: 11px; color: var(--text-tertiary,#aaa); }
+    .quick-record-footer { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--border,#eee); }
+    .quick-record-footer button { padding: 8px 20px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+    .qr-save-btn { border: none; background: var(--accent,#4a7dff); color: #fff; }
+    .qr-save-btn:hover { opacity: 0.9; }
+    .qr-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .qr-cancel-btn { border: 1px solid var(--border,#ddd); background: none; }
+    .qr-toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(0,0,0,0.75); color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; z-index: 1100; pointer-events: none; opacity: 0; transition: opacity 0.3s; }
+    .qr-toast.show { opacity: 1; }
+
     /* Quick actions */
     .quick-actions {
       display: flex; gap: 8px; padding: 8px 20px;
@@ -683,6 +710,7 @@
         <div class="quick-actions">
           <span class="quick-chip" onclick="handleTodayPlanClick()">📋 今日计划</span>
           <span class="quick-chip" onclick="quickSend('根据我们之前的聊天记录和我的学习数据，帮我分析一下各科的薄弱点')">🔍 薄弱分析</span>
+          <span class="quick-chip" onclick="openQuickRecordModal()">⏱ 记录时长</span>
           <span class="quick-chip" id="pomodoroChip" onclick="togglePomodoroFromChip()">🍅 开始专注</span>
         </div>
         <div class="image-preview-bar" id="imagePreviewBar" style="display:none">
@@ -795,6 +823,67 @@
       </div>
     </div>
   </div>
+
+  <!-- 快捷记录学习时长 -->
+  <div class="quick-record-overlay" id="quickRecordModal" onclick="if(event.target===this)closeQuickRecordModal()">
+    <div class="quick-record-modal">
+      <div class="quick-record-header">
+        <span>快捷记录学习时长</span>
+        <button class="quick-record-close" onclick="closeQuickRecordModal()">✕</button>
+      </div>
+      <div class="quick-record-body" id="quickRecordBody">
+        <div class="qr-subject-card" data-subject="数学">
+          <div class="qr-subject-label"><span class="qr-subject-dot" style="background:#6b5b4e"></span>数学</div>
+          <div class="qr-time-row">
+            <button class="qr-time-btn" onclick="selectQRTime(this,30)">30分钟</button>
+            <button class="qr-time-btn" onclick="selectQRTime(this,45)">45分钟</button>
+            <button class="qr-time-btn" onclick="selectQRTime(this,60)">1小时</button>
+            <button class="qr-time-btn" onclick="selectQRTime(this,90)">1.5小时</button>
+            <button class="qr-time-btn" onclick="selectQRTime(this,120)">2小时</button>
+            <input type="number" class="qr-custom-input" placeholder="分钟" min="1" max="600" oninput="onQRCustomInput(this)"><span class="qr-custom-label">自定义</span>
+          </div>
+        </div>
+        <div class="qr-subject-card" data-subject="英语">
+          <div class="qr-subject-label"><span class="qr-subject-dot" style="background:#c47d3f"></span>英语</div>
+          <div class="qr-time-row">
+            <button class="qr-time-btn" onclick="selectQRTime(this,30)">30分钟</button>
+            <button class="qr-time-btn" onclick="selectQRTime(this,45)">45分钟</button>
+            <button class="qr-time-btn" onclick="selectQRTime(this,60)">1小时</button>
+            <button class="qr-time-btn" onclick="selectQRTime(this,90)">1.5小时</button>
+            <button class="qr-time-btn" onclick="selectQRTime(this,120)">2小时</button>
+            <input type="number" class="qr-custom-input" placeholder="分钟" min="1" max="600" oninput="onQRCustomInput(this)"><span class="qr-custom-label">自定义</span>
+          </div>
+        </div>
+        <div class="qr-subject-card" data-subject="政治">
+          <div class="qr-subject-label"><span class="qr-subject-dot" style="background:#c0504d"></span>政治</div>
+          <div class="qr-time-row">
+            <button class="qr-time-btn" onclick="selectQRTime(this,30)">30分钟</button>
+            <button class="qr-time-btn" onclick="selectQRTime(this,45)">45分钟</button>
+            <button class="qr-time-btn" onclick="selectQRTime(this,60)">1小时</button>
+            <button class="qr-time-btn" onclick="selectQRTime(this,90)">1.5小时</button>
+            <button class="qr-time-btn" onclick="selectQRTime(this,120)">2小时</button>
+            <input type="number" class="qr-custom-input" placeholder="分钟" min="1" max="600" oninput="onQRCustomInput(this)"><span class="qr-custom-label">自定义</span>
+          </div>
+        </div>
+        <div class="qr-subject-card" data-subject="专业课">
+          <div class="qr-subject-label"><span class="qr-subject-dot" style="background:#5a8a6a"></span>专业课</div>
+          <div class="qr-time-row">
+            <button class="qr-time-btn" onclick="selectQRTime(this,30)">30分钟</button>
+            <button class="qr-time-btn" onclick="selectQRTime(this,45)">45分钟</button>
+            <button class="qr-time-btn" onclick="selectQRTime(this,60)">1小时</button>
+            <button class="qr-time-btn" onclick="selectQRTime(this,90)">1.5小时</button>
+            <button class="qr-time-btn" onclick="selectQRTime(this,120)">2小时</button>
+            <input type="number" class="qr-custom-input" placeholder="分钟" min="1" max="600" oninput="onQRCustomInput(this)"><span class="qr-custom-label">自定义</span>
+          </div>
+        </div>
+      </div>
+      <div class="quick-record-footer">
+        <button class="qr-cancel-btn" onclick="closeQuickRecordModal()">取消</button>
+        <button class="qr-save-btn" id="qrSaveBtn" onclick="saveQuickRecord()">确认记录</button>
+      </div>
+    </div>
+  </div>
+  <div class="qr-toast" id="qrToast"></div>
 
   <script>
     // ==================== 设备身份管理 ====================
@@ -2118,6 +2207,87 @@
       const pos = before.length + tex.length + 3;
       input.setSelectionRange(pos, pos);
       closeFormulaModal();
+    }
+
+    // ==================== 快捷记录学习时长 ====================
+    const QR_SUBJECTS = ['数学','英语','政治','专业课'];
+    const QR_COLORS = {'数学':'#6b5b4e','英语':'#c47d3f','政治':'#c0504d','专业课':'#5a8a6a'};
+
+    function openQuickRecordModal() {
+      const modal = document.getElementById('quickRecordModal');
+      modal.classList.add('open');
+      // 清除所有选中状态和自定义输入
+      modal.querySelectorAll('.qr-time-btn').forEach(b => b.classList.remove('selected'));
+      modal.querySelectorAll('.qr-custom-input').forEach(i => i.value = '');
+    }
+    function closeQuickRecordModal() {
+      document.getElementById('quickRecordModal').classList.remove('open');
+    }
+
+    function selectQRTime(btn, minutes) {
+      const row = btn.closest('.qr-time-row');
+      // 切换选中：点击已选中的按钮则取消
+      const wasSelected = btn.classList.contains('selected');
+      row.querySelectorAll('.qr-time-btn').forEach(b => b.classList.remove('selected'));
+      row.querySelector('.qr-custom-input').value = '';
+      if (!wasSelected) btn.classList.add('selected');
+    }
+
+    function onQRCustomInput(input) {
+      const row = input.closest('.qr-time-row');
+      if (input.value) {
+        row.querySelectorAll('.qr-time-btn').forEach(b => b.classList.remove('selected'));
+      }
+    }
+
+    function saveQuickRecord() {
+      const today = new Date().toISOString().split('T')[0];
+      const cards = document.querySelectorAll('.qr-subject-card');
+      const saved = [];
+
+      cards.forEach(card => {
+        const subject = card.dataset.subject;
+        let minutes = 0;
+        const selectedBtn = card.querySelector('.qr-time-btn.selected');
+        if (selectedBtn) {
+          minutes = parseInt(selectedBtn.textContent) || 0;
+          // 解析 "1小时" "1.5小时" 等格式
+          const text = selectedBtn.textContent;
+          if (text.includes('小时')) {
+            minutes = parseFloat(text) * 60;
+          }
+        } else {
+          const customInput = card.querySelector('.qr-custom-input');
+          if (customInput.value) minutes = parseInt(customInput.value) || 0;
+        }
+
+        if (minutes > 0) {
+          addStudyRecord({
+            date: today,
+            subject: subject,
+            duration: minutes,
+            content: '快捷记录',
+            completed: true
+          });
+          saved.push(`${subject} ${minutes}分钟`);
+        }
+      });
+
+      if (saved.length === 0) {
+        showQRToast('请至少选择一个科目的学习时长');
+        return;
+      }
+
+      closeQuickRecordModal();
+      renderStatsPanel();
+      showQRToast('已记录：' + saved.join('，'));
+    }
+
+    function showQRToast(msg) {
+      const toast = document.getElementById('qrToast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
     }
 
     // ==================== 图片识别 ====================
