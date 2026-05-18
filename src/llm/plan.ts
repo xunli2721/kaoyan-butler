@@ -76,8 +76,20 @@ export async function handlePlanIntent(
   const subIntent = intent.subIntent;
 
   switch (subIntent) {
-    case 'plan_create':
+    case 'plan_create': {
+      // 检查当天是否已有计划，避免重复生成
+      const today = new Date().toISOString().split('T')[0];
+      if (existingPlanJson && existingPlanJson !== '[]') {
+        try {
+          const plans = JSON.parse(existingPlanJson);
+          const existing = plans.find((p: any) => p.date === today);
+          if (existing && existing.items?.length) {
+            return handlePlanQuery({ ...intent, subIntent: 'plan_query' }, existingPlanJson);
+          }
+        } catch {}
+      }
       return await createPlan(message, intent, client);
+    }
 
     case 'plan_query':
       return handlePlanQuery(intent, existingPlanJson);

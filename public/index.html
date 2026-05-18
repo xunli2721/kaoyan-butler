@@ -681,7 +681,7 @@
           </div>
         </div>
         <div class="quick-actions">
-          <span class="quick-chip" onclick="quickSend('帮我安排今天的复习')">📋 今日计划</span>
+          <span class="quick-chip" onclick="handleTodayPlanClick()">📋 今日计划</span>
           <span class="quick-chip" onclick="quickSend('根据我们之前的聊天记录和我的学习数据，帮我分析一下各科的薄弱点')">🔍 薄弱分析</span>
           <span class="quick-chip" id="pomodoroChip" onclick="togglePomodoroFromChip()">🍅 开始专注</span>
         </div>
@@ -1799,7 +1799,7 @@
           const wrapper = document.createElement('div');
           wrapper.className = 'message-wrapper assistant';
           wrapper.innerHTML = `<div class="msg-avatar">🤖</div><div class="msg-content"><div class="welcome-card"><h3>👋 你好！我是考研小管家</h3><div class="welcome-features">
-            <div class="welcome-feature" onclick="quickSend('我叫小明，考浙大计算机')"><span class="wf-icon">📝</span><span class="wf-text">设置考研信息</span></div>
+            <div class="welcome-feature" onclick="quickSend('我叫小吴，考浙大计算机')"><span class="wf-icon">📝</span><span class="wf-text">设置考研信息</span></div>
             <div class="welcome-feature" onclick="quickSend('帮我安排今天的复习')"><span class="wf-icon">📋</span><span class="wf-text">制定复习计划</span></div>
             <div class="welcome-feature" onclick="quickSend('什么是泰勒展开？')"><span class="wf-icon">❓</span><span class="wf-text">知识问答</span></div>
             <div class="welcome-feature" onclick="quickSend('今天学了2小时高数')"><span class="wf-icon">⏱️</span><span class="wf-text">记录学习</span></div>
@@ -2070,6 +2070,15 @@
     }
 
     function quickSend(text) { messageInput.value=text; sendMessage(); }
+
+    function handleTodayPlanClick() {
+      const existing = getTodayPlan();
+      if (existing && existing.items?.length) {
+        switchSidebarTab('plan');
+      } else {
+        quickSend('帮我安排今天的复习');
+      }
+    }
 
     // ==================== 公式编辑器 ====================
     function openFormulaModal() {
@@ -2447,7 +2456,7 @@
     // ==================== 模拟数据（调试用） ====================
     window.generateMockData = function() {
       // ========== 用户档案 ==========
-      const profile = { name:'小明', targetSchool:'浙江大学', targetMajor:'计算机科学与技术', examDate:'2026-12-20', stage:'基础', weakPoints:['高数','线性代数'], undergraduateSchool:'杭州电子科技大学', studyPreference:'上午高数，下午专业课，晚上英语', createdAt: new Date('2026-04-26').getTime() };
+      const profile = { name:'小吴', targetSchool:'浙江大学', targetMajor:'计算机科学与技术', examDate:'2026-12-20', stage:'基础', weakPoints:['高数','线性代数'], undergraduateSchool:'杭州电子科技大学', studyPreference:'上午高数，下午专业课，晚上英语', createdAt: new Date('2026-04-26').getTime() };
       localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
 
       // ========== 学习记录 (4/26 - 5/14) ==========
