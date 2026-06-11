@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>模拟数据生成器 — 考研小管家</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'LXGW WenKai', system-ui, sans-serif; background: #f5f0e8; color: #333; padding: 40px 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    h1 { font-size: 20px; margin-bottom: 8px; }
+    p { font-size: 14px; color: #666; margin-bottom: 20px; line-height: 1.6; }
+    .info { background: #f0f7ff; border: 1px solid #d0e3ff; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #336; margin-bottom: 20px; line-height: 1.6; }
+    button { background: #4a7dff; color: #fff; border: none; padding: 12px 28px; border-radius: 8px; font-size: 15px; cursor: pointer; font-family: inherit; }
+    button:hover { background: #3a6df0; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    #log { margin-top: 20px; font-size: 13px; line-height: 1.8; color: #555; white-space: pre-wrap; max-height: 400px; overflow-y: auto; background: #fafafa; padding: 16px; border-radius: 8px; border: 1px solid #eee; }
+    .ok { color: #2a9d2a; }
+    .warn { color: #e6a817; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 模拟数据生成器</h1>
+    <p>为考研小管家生成 5月21日 ~ 6月10日 的模拟学习数据，包括学习记录、每日计划和少量错题。</p>
+    <div class="info">
+      ⚠️ 使用方法：先在另一个标签页打开考研小管家，然后回到此页面点击按钮。数据会写入当前域名的 localStorage。<br>
+      如果考研小管家运行在 <code>localhost:3000</code>，请确保此页面也在同一端口打开（或将此文件放到 public 目录下访问）。
+    </div>
+    <button id="btn" onclick="generate()">生成模拟数据</button>
+    <div id="log"></div>
+  </div>
+  <script>
+    function log(msg, cls) {
+      const el = document.getElementById('log');
+      el.innerHTML += `<span class="${cls||''}">${msg}</span>\n`;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function pick(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function generate() {
+      const btn = document.getElementById('btn');
+      btn.disabled = true;
+      btn.textContent = '生成中...';
+
+      const START = '2025-05-21';
+      const END   = '2025-06-10';
+
+      // ── 科目与内容模板 ──────────────────────────
+      const SUBJECTS = [
+        { name: '高数', tasks: [
+          '极限与连续复习', '导数与微分练习', '不定积分计算', '定积分应用题',
+          '多元函数微分', '重积分练习', '级数收敛判别', '微分方程求解',
+          '中值定理证明题', '泰勒展开练习', '曲线曲面积分', '极限综合题'
+        ]},
+        { name: '英语', tasks: [
+          '阅读理解精读2篇', '完形填空练习', '新题型训练', '翻译练习',
+          '作文模板背诵', '单词复习(Unit 15-20)', '长难句分析', '阅读真题2018',
+          '写作练习(图表)', '单词复习(Unit 21-26)', '阅读真题2019', '七选五训练'
+        ]},
+        { name: '政治', tasks: [
+          '马原唯物论复习', '马原辩证法练习', '毛中特第八章', '史纲第一章',
+          '思修法基练习', '马原认识论', '毛中特第九章', '史纲第二章',
+          '时政热点整理', '马原唯物史观', '毛中特第十章', '选择题专项训练'
+        ]},
+        { name: '专业课', tasks: [
+          '数据结构-树', '数据结构-图', '操作系统-进程', '操作系统-内存',
+          '计网-传输层', '计网-应用层', '数据结构-排序', '数据结构-查找',
+          '操作系统-文件', '计网-网络层', '真题练习(2022)', '真题练习(2023)'
+        ]}
+      ];
+
+      const TIME_SLOTS = [
+        ['08:30-10:00', '10:15-11:45'],
+        ['14:00-15:30', '15:45-17:15'],
+        ['19:00-20:30', '20:45-22:00'],
+      ];
+
+      // ── 生成学习记录 ──────────────────────────
+      const records = JSON.parse(localStorage.getItem('kaoyan-study-records') || '[]');
+      const plans   = JSON.parse(localStorage.getItem('kaoyan-plans') || '[]');
+      const mistakes = JSON.parse(localStorage.getItem('kaoyan-mistakes') || '[]');
+
+      let recordCount = 0, planCount = 0, mistakeCount = 0;
+
+      const current = new Date(START + 'T00:00:00');
+      const end = new Date(END + 'T00:00:00');
+
+      while (current <= end) {
+        const date = current.toISOString().split('T')[0];
+        const dayOfWeek = current.getDay(); // 0=Sun
+
+        // 80% 概率学习（偶尔休息一天）
+        const isStudyDay = Math.random() < 0.82;
+
+        if (isStudyDay) {
+          // 选 2~4 个科目
+          const numSubjects = randomInt(2, 4);
+          const shuffled = [...SUBJECTS].sort(() => Math.random() - 0.5);
+          const todaySubjects = shuffled.slice(0, numSubjects);
+
+          const planItems = [];
+
+          todaySubjects.forEach((subj, si) => {
+            const slotPair = TIME_SLOTS[si % TIME_SLOTS.length];
+            const task = pick(subj.tasks);
+            const duration = randomInt(60, 120);
+
+            // 学习记录
+            records.push({
+              date,
+              subject: subj.name,
+              duration,
+              content: task,
+              completed: Math.random() < 0.88,
+              createdAt: new Date(date + 'T12:00:00').getTime() + si * 1000
+            });
+            recordCount++;
+
+            // 计划项
+            slotPair.forEach(slot => {
+              planItems.push({
+                time: slot,
+                subject: subj.name,
+                task: pick(subj.tasks),
+                status: Math.random() < 0.75 ? 'done' : (Math.random() < 0.5 ? 'skipped' : 'pending')
+              });
+            });
+          });
+
+          plans.push({
+            date,
+            stage: '基础',
+            items: planItems,
+            createdAt: new Date(date + 'T08:00:00').getTime()
+          });
+          planCount++;
+        }
+
+        current.setDate(current.getDate() + 1);
+      }
+
+      // ── 生成错题（5~8 道）──────────────────────
+      const MISTAKE_TEMPLATES = [
+        { subject: '高数', question: '求极限 lim(x→0) (sinx-x)/x³', userAnswer: '0', correctAnswer: '-1/6', errorType: '计算失误', analysis: '使用泰勒展开：sinx = x - x³/6 + o(x³)，代入得 (x - x³/6 - x)/x³ = -1/6' },
+        { subject: '高数', question: '设f(x)在[0,1]连续，(0,1)可导，f(0)=0, f(1)=1，证明存在ξ∈(0,1)使f\'(ξ)=2ξ', userAnswer: '不会', correctAnswer: '构造g(x)=f(x)-x²，用罗尔定理', errorType: '方法错误', analysis: '关键在于构造辅助函数。令g(x)=f(x)-x²，则g(0)=0, g(1)=0，由罗尔定理∃ξ∈(0,1)使g\'(ξ)=0，即f\'(ξ)=2ξ' },
+        { subject: '英语', question: 'The committee ___ (be) divided in opinion on this matter.', userAnswer: 'are', correctAnswer: 'is/was', errorType: '概念混淆', analysis: 'committee 作为整体时用单数，强调成员个体时用复数。此处"in opinion"暗示整体立场，用单数更规范。' },
+        { subject: '英语', question: '翻译：Not until quite recently did I have any idea what a guided missile was like.', userAnswer: '直到最近我才知道导弹是什么', correctAnswer: '直到最近我才知道制导导弹是什么样子的', errorType: '审题不清', analysis: 'guided missile 是"制导导弹"不是普通"导弹"；"what...was like"要译出"是什么样子的"。' },
+        { subject: '政治', question: '唯物辩证法的实质和核心是什么？', userAnswer: '否定之否定规律', correctAnswer: '对立统一规律', errorType: '概念混淆', analysis: '对立统一规律揭示了事物发展的源泉和动力，是唯物辩证法的实质和核心。否定之否定规律揭示的是事物发展的方向和道路。' },
+        { subject: '专业课', question: '快速排序在最坏情况下的时间复杂度是多少？', userAnswer: 'O(nlogn)', correctAnswer: 'O(n²)', errorType: '概念混淆', analysis: '快速排序平均O(nlogn)，但当数组已有序或逆序时退化为O(n²)。这是快排的最坏情况，此时每次只减少一个元素。' },
+        { subject: '高数', question: '计算 ∫₀^1 x·e^x dx', userAnswer: 'e-1', correctAnswer: '1', errorType: '计算失误', analysis: '分部积分：∫xe^x dx = xe^x - ∫e^x dx = xe^x - e^x = (x-1)e^x。代入上下限：(1-1)e - (0-1)e⁰ = 0+1 = 1' },
+        { subject: '专业课', question: '进程和线程的根本区别是什么？', userAnswer: '线程更轻量', correctAnswer: '进程是资源分配的基本单位，线程是CPU调度的基本单位', errorType: '审题不清', analysis: '问的是"根本区别"，要从操作系统资源管理的角度回答。线程轻量是表现，不是根本原因。' },
+      ];
+
+      const numMistakes = randomInt(5, 7);
+      const shuffledMistakes = [...MISTAKE_TEMPLATES].sort(() => Math.random() - 0.5);
+      for (let i = 0; i < numMistakes; i++) {
+        const m = shuffledMistakes[i];
+        const daysAgo = randomInt(1, 18);
+        const mDate = new Date('2025-06-10');
+        mDate.setDate(mDate.getDate() - daysAgo);
+        mistakes.push({
+          id: (Date.now() - i * 86400000).toString(),
+          date: mDate.toISOString().split('T')[0],
+          ...m,
+          notes: '',
+          createdAt: mDate.getTime()
+        });
+        mistakeCount++;
+      }
+
+      // ── 写入 localStorage ──────────────────────
+      localStorage.setItem('kaoyan-study-records', JSON.stringify(records));
+      localStorage.setItem('kaoyan-plans', JSON.stringify(plans));
+      localStorage.setItem('kaoyan-mistakes', JSON.stringify(mistakes));
+
+      log(`✅ 学习记录：新增 ${recordCount} 条（共 ${records.length} 条）`, 'ok');
+      log(`✅ 每日计划：新增 ${planCount} 天（共 ${plans.length} 天）`, 'ok');
+      log(`✅ 错题记录：新增 ${mistakeCount} 道（共 ${mistakes.length} 道）`, 'ok');
+      log('', '');
+      log('🎉 数据生成完成！刷新考研小管家页面即可看到新数据。', 'ok');
+
+      btn.textContent = '已完成 ✓';
+    }
+  </script>
+</body>
+</html>

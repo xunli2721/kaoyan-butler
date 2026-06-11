@@ -21,9 +21,19 @@ No formal test framework — tests use a custom `assert()` helper with pass/fail
 
 ## Environment
 
-- `DEEPSEEK_API_KEY` — Required. Set in `.env` (gitignored). Get from https://platform.deepseek.com/
-- `ZHIPU_API_KEY` — Optional. Enables image recognition via Zhipu GLM-4V. Set in `.env`. Get from https://open.bigmodel.cn/
-- `PORT` — Optional, defaults to 3000
+Required (set in `.env`, gitignored — see `.env.example`):
+
+- `DEEPSEEK_API_KEY` — Get from https://platform.deepseek.com/
+
+Optional:
+
+- `ZHIPU_API_KEY` — Enables image recognition via Zhipu GLM-4V. Get from https://open.bigmodel.cn/
+- `PORT` — Defaults to 3000
+- `DEEPSEEK_BASE_URL` — Override DeepSeek API endpoint (default: `https://api.deepseek.com/v1/chat/completions`)
+- `DEEPSEEK_MODEL` — Override DeepSeek model (default: `deepseek-v4-flash`)
+- `ZHIPU_BASE_URL` — Override Zhipu API endpoint (default: `https://open.bigmodel.cn/api/paas/v4/chat/completions`)
+- `ZHIPU_MODEL` — Override Zhipu text model (default: `glm-4-flash`)
+- `ZHIPU_VISION_MODEL` — Override Zhipu vision model (default: `GLM-4.6V-FlashX`)
 
 ## Architecture
 
@@ -54,12 +64,16 @@ Note: `review_mistake*` and `review_weekly` route before `review_*` to avoid pre
 - **No REST routes.** All interaction is WebSocket-based. Only HTTP endpoint is `GET /health`.
 - **Server is stateless.** The frontend builds a `memoryContext` text summary (profile, stats, plans) and sends it with every WebSocket message. The server has no database.
 - **All persistence is browser LocalStorage.** Keys: `kaoyan-profile`, `kaoyan-study-records`, `kaoyan-plans`, `kaoyan-mistakes`, `kaoyan-pomodoro-state`, `kaoyan-guide-shown`, `kaoyan-butler-conversations` (metadata), `kaoyan-butler-chat-{convId}` (per-conversation history), `kaoyan-butler-active-conv`. Chat history supports multi-conversation with auto-migration from old `kaoyan-butler-chat-history` format.
-- **Frontend is a single monolithic HTML file** (`public/index.html`, ~2600 lines) with embedded CSS and JS. It uses LXGW WenKai webfont, Chart.js, KaTeX (math rendering), and marked.js (Markdown parsing) from CDN. Sidebar tabs: 今日计划、学习统计、错题本、周报、数据.
+- **Frontend is a single monolithic HTML file** (`public/index.html`, ~3300 lines) with embedded CSS and JS. It uses LXGW WenKai webfont, Chart.js, KaTeX (math rendering), and marked.js (Markdown parsing) from CDN. Sidebar tabs: 今日计划、学习统计、错题本、周报、数据.
 - **The `src/llm/memory/` module is frontend-oriented** — `storage.ts` uses `localStorage` which doesn't exist in Node.js. The actual memory flow is: frontend builds context → sends via WebSocket → server uses it in prompts.
 
 ### LLM Client Pattern
 
 `src/llm/types.ts` defines the `LLMClient` interface. `DeepSeekClient` (`deepseek.ts`) handles text LLM calls. `ZhipuClient` (`zhipu.ts`) handles image recognition via GLM-4V (multimodal). Each domain handler (plan, qa, review, mistake, emotion, weekly-report) constructs its own system prompt + context and calls the LLM independently.
+
+### Centralized Config
+
+`src/config.ts` holds all tunable constants (API endpoints, model names, timeouts, token limits). Every value can be overridden via environment variables. No hardcoded URLs, model names, or timeouts should appear outside this file.
 
 ### Intent Sub-Intents
 
@@ -73,4 +87,7 @@ ES modules (`"type": "module"` in package.json). All imports must use `.js` exte
 
 ## Deployment
 
-Configured for Render.com via `render.yaml` (free tier). Build: `npm install && npm run build`. Start: `npm start`.
+Configured for two platforms:
+
+- **Render.com** — `render.yaml` (free tier). Build: `npm install && npm run build`. Start: `npm start`.
+- **Glitch** — `glitch.json`. Same build/start commands. Set env vars in Glitch dashboard.

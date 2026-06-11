@@ -5,6 +5,7 @@
 
 import { DeepSeekClient } from './deepseek.js';
 import type { IntentResult } from './intent/ai.js';
+import { CONFIG } from '../config.js';
 
 export interface WeeklyReportResponse {
   text: string;
@@ -60,7 +61,7 @@ export async function handleWeeklyReportIntent(
   const prompt = `${WEEKLY_REPORT_PROMPT}\n\n【用户请求】${message}${extraContext}`;
 
   try {
-    const response = await client.simpleChat(prompt, memoryContext, 120000);
+    const response = await client.simpleChat(prompt, memoryContext, CONFIG.WEEKLY_REPORT_TIMEOUT_MS);
     return { text: response };
   } catch (error: any) {
     console.error('[周报] 生成失败:', error);

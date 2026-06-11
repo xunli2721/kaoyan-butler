@@ -4,6 +4,7 @@
 
 import { LLMClient, LLMRequest, LLMResponse, LLMConfig } from './types.js';
 import { buildChatPrompt } from './prompt.js';
+import { CONFIG } from '../config.js';
 
 export class DeepSeekClient implements LLMClient {
   private config: LLMConfig;
@@ -17,7 +18,7 @@ export class DeepSeekClient implements LLMClient {
   private loadConfig(): LLMConfig {
     return {
       provider: 'deepseek',
-      model: 'deepseek-v4-flash',
+      model: CONFIG.DEEPSEEK_MODEL,
     };
   }
 
@@ -107,22 +108,21 @@ export class DeepSeekClient implements LLMClient {
   }
 
   private async callMultimodalAPI(content: any[]): Promise<string> {
-    const url = 'https://api.deepseek.com/v1/chat/completions';
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000);
+    const timeout = setTimeout(() => controller.abort(), CONFIG.IMAGE_TIMEOUT_MS);
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch(CONFIG.DEEPSEEK_BASE_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: this.config.model || 'deepseek-v4-flash',
+          model: this.config.model || CONFIG.DEEPSEEK_MODEL,
           messages: [{ role: 'user', content }],
           temperature: 0.7,
-          max_tokens: 2048,
+          max_tokens: CONFIG.DEFAULT_MAX_TOKENS,
         }),
         signal: controller.signal,
       });
@@ -140,20 +140,18 @@ export class DeepSeekClient implements LLMClient {
   }
 
   private async callDeepSeekAPI(prompt: string, timeoutMs?: number): Promise<string> {
-    const url = 'https://api.deepseek.com/v1/chat/completions';
-
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs || 30000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs || CONFIG.DEFAULT_TIMEOUT_MS);
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch(CONFIG.DEEPSEEK_BASE_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: this.config.model || 'deepseek-v4-flash',
+          model: this.config.model || CONFIG.DEEPSEEK_MODEL,
           messages: [
             {
               role: 'user',
@@ -161,7 +159,7 @@ export class DeepSeekClient implements LLMClient {
             },
           ],
           temperature: 0.7,
-          max_tokens: 2048,
+          max_tokens: CONFIG.DEFAULT_MAX_TOKENS,
         }),
         signal: controller.signal,
       });

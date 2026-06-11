@@ -4,6 +4,7 @@
 
 import { LLMClient, LLMRequest, LLMResponse, LLMConfig } from './types.js';
 import { buildChatPrompt } from './prompt.js';
+import { CONFIG } from '../config.js';
 
 export class ZhipuClient implements LLMClient {
   private config: LLMConfig;
@@ -17,7 +18,7 @@ export class ZhipuClient implements LLMClient {
   private loadConfig(): LLMConfig {
     return {
       provider: 'zhipu',
-      model: 'glm-4-flash',
+      model: CONFIG.ZHIPU_MODEL,
     };
   }
 
@@ -107,22 +108,21 @@ export class ZhipuClient implements LLMClient {
   }
 
   private async callVisionAPI(content: any[]): Promise<string> {
-    const url = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000);
+    const timeout = setTimeout(() => controller.abort(), CONFIG.IMAGE_TIMEOUT_MS);
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch(CONFIG.ZHIPU_BASE_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: 'GLM-4.6V-FlashX',
+          model: CONFIG.ZHIPU_VISION_MODEL,
           messages: [{ role: 'user', content }],
           temperature: 0.7,
-          max_tokens: 2048,
+          max_tokens: CONFIG.DEFAULT_MAX_TOKENS,
         }),
         signal: controller.signal,
       });
@@ -140,16 +140,14 @@ export class ZhipuClient implements LLMClient {
   }
 
   private async callZhipuAPI(prompt: string): Promise<string> {
-    const url = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-
-    const response = await fetch(url, {
+    const response = await fetch(CONFIG.ZHIPU_BASE_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify({
-        model: this.config.model || 'glm-4-flash',
+        model: this.config.model || CONFIG.ZHIPU_MODEL,
         messages: [
           {
             role: 'user',

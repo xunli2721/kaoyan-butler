@@ -19,11 +19,10 @@ import { handleEmotionIntent } from './llm/emotion.js';
 import { handleMistakeIntent } from './llm/mistake.js';
 import { handleWeeklyReportIntent } from './llm/weekly-report.js';
 import { handleAnalyticsIntent } from './llm/analytics.js';
+import { CONFIG } from './config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-const PORT = process.env.PORT || 3000;
 
 const app = express();
 const server = createServer(app);
@@ -329,11 +328,11 @@ app.get('/health', (req, res) => {
   });
 });
 
-server.listen(PORT, () => {
+server.listen(CONFIG.PORT, () => {
   console.log('='.repeat(50));
   console.log('  考研小管家 - AI考研备考助手');
   console.log('='.repeat(50));
-  console.log(`  服务器已启动: http://localhost:${PORT}`);
+  console.log(`  服务器已启动: http://localhost:${CONFIG.PORT}`);
   console.log('='.repeat(50));
   console.log(`LLM状态: ${llmAvailable ? '✅ 已配置' : '❌ 未配置'}`);
   if (!llmAvailable) {
